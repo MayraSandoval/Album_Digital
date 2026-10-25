@@ -68,12 +68,33 @@ class Scanner:
         max(ancho_sup, ancho_inf) × max(alto_izq, alto_der) — sin recortar
         contenido por quedar corta de píxeles.
         """
-        raise NotImplementedYet("Scanner.warp (album/scanning.py)")
+        pts = np.asarray(corners, dtype=np.float32)
+        top_left, top_right, bottom_right, bottom_left = pts
+
+        # Los lados opuestos de una hoja deberían medir parecido: nos quedamos
+        # con el máximo de cada par para no perder contenido.
+        width = round(max(
+            np.linalg.norm(top_right - top_left),
+            np.linalg.norm(bottom_right - bottom_left),
+        ))
+        height = round(max(
+            np.linalg.norm(bottom_left - top_left),
+            np.linalg.norm(bottom_right - top_right),
+        ))
+
+        destination = np.array([
+            [0, 0],
+            [width - 1, 0],
+            [width - 1, height - 1],
+            [0, height - 1],
+        ], dtype=np.float32)
+
+        transform = cv2.getPerspectiveTransform(pts, destination)
+        return cv2.warpPerspective(image, transform, (width, height))
 
     def scan(self, image: np.ndarray) -> np.ndarray:
         """Detecta las esquinas y endereza. DocumentNotFound si no hay hoja."""
-        raise NotImplementedYet("Scanner.scan (album/scanning.py)")
-
+        return self.warp(image, self.detect_corners(image))
 
 
     def _resize(self, image: np.ndarray) -> tuple[np.ndarray, float]:
