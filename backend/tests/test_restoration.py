@@ -1,8 +1,7 @@
 """Tests para la parte 3: los pasos de restauración (album/restoration.py).
 
 Los primeros tests prueban la mecánica del pipeline. Los
-últimos prueban el EFECTO de cada paso: fallan mientras el paso lance
-NotImplementedYet (el pipeline lo saltea y la foto queda igual).
+últimos prueban el EFECTO de cada paso.
 """
 
 from __future__ import annotations
@@ -18,12 +17,19 @@ IMG = synth.photo()
 PIPELINE = RestorationPipeline()
 
 
-# ------------------------------------------------------- mecánica (dada)
+# ------------------------------------------------------- mecánica
 
 
 def test_pasos_pendientes_se_saltean():
-    trace = PIPELINE.run(IMG)
-    assert [r.status for r in trace.results] == ["pending", "pending", "pending"]
+    class Pending(Step):
+        name = "pending"
+        label = "Pendiente"
+
+        def apply(self, image):
+            raise NotImplementedYet("todavía no")
+
+    trace = PIPELINE.run(IMG, steps=[Pending()])
+    assert [r.status for r in trace.results] == ["pending"]
     assert np.array_equal(trace.image, IMG)
     assert trace.complete is False
 

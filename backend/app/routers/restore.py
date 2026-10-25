@@ -15,6 +15,15 @@ pipeline = RestorationPipeline()
 
 ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
+TRUE_VALUES = {"1", "true", "on", "yes"}
+
+
+def _form_bool(value: str | None, default: bool) -> bool:
+    """Form(bool) con default True se rompe en FastAPI 0.156 si el campo falta."""
+    if value is None:
+        return default
+    return value.strip().lower() in TRUE_VALUES
+
 
 @router.post(
     "/{photo_id}/restore",
@@ -24,15 +33,19 @@ ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": Err
 )
 async def restore_photo(
     photo_id: str,
-    denoise: Annotated[str, Form(description="auto, median, bilateral o none")] = "auto",
-    scratches: Annotated[bool, Form(description="reparar rasguños")] = True,
-    contrast: Annotated[bool, Form(description="realzar contraste")] = True,
+    denoise: Annotated[str | None, Form(description="auto, median, bilateral o none")] = None,
+    scratches: Annotated[str | None, Form(description="reparar rasguños")] = None,
+    contrast: Annotated[str | None, Form(description="realzar contraste")] = None,
 ):
     entry = album.get(photo_id)
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
     image = album.read_image(entry)
-    options = RestorationOptions(denoise=denoise, repair_scratches=scratches, contrast=contrast)  # type: ignore[arg-type]
+    options = RestorationOptions(
+        denoise=denoise or "auto",  # type: ignore[arg-type]
+        repair_scratches=_form_bool(scratches, default=True),
+        contrast=_form_bool(contrast, default=True),
+    )
     trace = pipeline.run(image, options)
 
     restored_url = None

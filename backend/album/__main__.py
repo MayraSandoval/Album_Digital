@@ -29,7 +29,15 @@ from album.scanning import Scanner
 SYMBOLS = {"done": "✓", "pending": "·", "blocked": "-", "failed": "✗"}
 
 
+def _force_utf8() -> None:
+    """La consola de Windows en cp1252 no puede imprimir ✓ ni ✗."""
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8()
     parser = argparse.ArgumentParser(
         prog="python -m album",
         description="Álbum digital: digitalizá, restaurá y organizá fotos.",
