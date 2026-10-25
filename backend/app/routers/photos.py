@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException, UploadFile
 
 from app.album import Album
 from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
-from app.schemas import ErrorOut, PhotoOut
+from app.schemas import ErrorOut, PhotoOut, QualityOut
 from app.uploads import read_upload
+from album.quality import diagnose
 
 router = APIRouter(prefix="/api/photos", tags=["fotos"])
 album = Album(STORAGE_DIR)
@@ -48,6 +49,26 @@ def get_photo(photo_id: str):
     if entry is None:
         raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
     return _photo_out(entry)
+
+
+@router.get(
+    "/{photo_id}/diagnose",
+    response_model=QualityOut,
+    summary="Diagnosticar nitidez y ruido de una foto",
+    responses={404: {"model": ErrorOut}},
+)
+def diagnose_photo(photo_id: str):
+    entry = album.get(photo_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
+    report = diagnose(album.read_image(entry))
+    return QualityOut(
+        sharpness=report.sharpness,
+        noise=report.noise,
+        mean_brightness=report.mean_brightness,
+        blurry=report.blurry,
+        noisy=report.noisy,
+    )
 
 
 @router.delete("/{photo_id}", status_code=204, summary="Borrar una foto", responses={404: {"model": ErrorOut}})

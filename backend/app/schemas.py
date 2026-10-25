@@ -38,6 +38,14 @@ class RestoreOut(BaseModel):
     restored_url: str | None = None
 
 
+class QualityOut(BaseModel):
+    sharpness: float = Field(description="Varianza del Laplaciano (más alto = más nítida)")
+    noise: float = Field(description="Desvío estándar estimado del ruido")
+    mean_brightness: float = Field(description="Brillo promedio del gris (0..255)")
+    blurry: bool
+    noisy: bool
+
+
 class ColorMatchOut(BaseModel):
     photo: PhotoOut
     fraction: float

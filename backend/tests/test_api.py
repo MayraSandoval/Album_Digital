@@ -87,6 +87,15 @@ def test_restaurar_con_opciones(client):
     assert response.json()["steps"] == []
 
 
+def test_diagnosticar_una_foto(client):
+    body = _upload(client, synth.salt_pepper(synth.photo(seed=31), amount=0.05))
+    response = client.get(f"/api/photos/{body['id']}/diagnose")
+    assert response.status_code == 200, response.text
+    report = response.json()
+    assert set(report) == {"sharpness", "noise", "mean_brightness", "blurry", "noisy"}
+    assert report["noisy"] is True
+
+
 def test_digitalizar_una_foto_impresa(client):
     image, _ = synth.paper_on_table()
     response = client.post("/api/scan", files={"file": ("mesa.png", _png(image), "image/png")})

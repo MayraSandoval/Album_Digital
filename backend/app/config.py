@@ -11,7 +11,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # backend/
 
-FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_DIR = BASE_DIR.parent / "frontend"  # raíz del repo, fuera de backend/
 STORAGE_DIR = Path(os.environ.get("ALBUM_STORAGE", str(BASE_DIR / "storage")))
 PHOTOS_DIR = STORAGE_DIR / "photos"
 INDEX_PATH = STORAGE_DIR / "album.json"
