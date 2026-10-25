@@ -6,6 +6,7 @@ comparativos con --steps, métricas con `metrics`) y para automatizar:
     python -m album restore foto.jpg restaurada.png [--denoise MÉTODO] [--no-scratches] [--no-contrast] [--steps CARPETA]
     python -m album scan mesa.jpg digitalizada.png
     python -m album metrics original.png restaurada.png
+    python -m album diagnose foto.jpg
 
 """
 
@@ -51,12 +52,17 @@ def main(argv: list[str] | None = None) -> int:
     p_metrics.add_argument("imagen_a", type=Path)
     p_metrics.add_argument("imagen_b", type=Path)
 
+    p_diagnose = sub.add_parser("diagnose", help="Analiza nitidez, ruido y brillo de una foto.")
+    p_diagnose.add_argument("entrada", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "restore":
         return _restore(args)
     if args.command == "scan":
         return _scan(args)
+    if args.command == "diagnose":
+        return _diagnose(args)
     return _metrics(args)
 
 
@@ -124,6 +130,18 @@ def _metrics(args) -> int:
         return 1
     print(f"MSE:  {m:.4f}")
     print(f"PSNR: {p:.2f} dB" if p != float("inf") else "PSNR: inf (imágenes idénticas)")
+    return 0
+
+
+def _diagnose(args) -> int:
+    from album.quality import diagnose
+
+    report = diagnose(_read(args.entrada))
+    print(f"Nitidez:  {report.sharpness:.1f}  (varianza del Laplaciano)")
+    print(f"Ruido:    {report.noise:.1f}  (desvío estimado)")
+    print(f"Brillo:   {report.mean_brightness:.1f}  (media del gris)")
+    problemas = [nombre for nombre, flag in (("borrosa", report.blurry), ("ruidosa", report.noisy)) if flag]
+    print("Diagnóstico: " + (", ".join(problemas) if problemas else "se ve bien"))
     return 0
 
 
