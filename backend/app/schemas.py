@@ -1,6 +1,8 @@
-"""Schemas de la API (pydantic)."""
+"""Schemas de la API (pydantic). Dado."""
 
 from __future__ import annotations
+
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -54,3 +56,13 @@ class ColorMatchOut(BaseModel):
 class SimilarMatchOut(BaseModel):
     photo: PhotoOut
     distance: float
+
+
+class GalleryItemOut(BaseModel):
+    id: str
+    kind: Literal["scanned", "restored"]
+    width: int
+    height: int
+    created: str
+    source_id: str | None = Field(default=None, description="Foto del álbum de la que salió la restauración")
+    url: str

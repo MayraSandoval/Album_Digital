@@ -6,11 +6,13 @@ from fastapi import APIRouter, Form, HTTPException
 
 from app.album import Album
 from app.config import MEDIA_URL, STORAGE_DIR
+from app.gallery import Gallery
 from app.schemas import ErrorOut, RestoreOut, StepOut
-from album import RestorationOptions, RestorationPipeline
+from album import RestorationOptions, RestorationPipeline, encode_png
 
 router = APIRouter(prefix="/api/photos", tags=["restauración"])
 album = Album(STORAGE_DIR)
+gallery = Gallery(STORAGE_DIR)
 pipeline = RestorationPipeline()
 
 ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
@@ -50,8 +52,12 @@ async def restore_photo(
 
     restored_url = None
     if any(r.status == "done" for r in trace.results):
-        album.mark_restored(entry, trace.image)
-        restored_url = f"{MEDIA_URL}/photos/{entry['id']}_restored.png"
+        item = gallery.add_restored(
+            entry["id"], encode_png(trace.image), trace.image.shape[1], trace.image.shape[0]
+        )
+        relative = f"{item['folder']}/{item['filename']}"
+        album.mark_restored(entry, relative)
+        restored_url = f"{MEDIA_URL}/{relative}"
 
     return RestoreOut(
         photo_id=photo_id,

@@ -1,12 +1,17 @@
 """Tests de contrato de la API (todo el flujo del álbum).
 
+Mientras el core tenga partes sin implementar, los endpoints afectados
+responden 501: estos tests fallan hasta que implementes cada módulo.
 """
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 
 from album import encode_png
+from app.config import STORAGE_DIR
 from tests import synth
 
 
@@ -25,6 +30,19 @@ def _upload(client, image: np.ndarray) -> dict:
     response = client.post("/api/photos", files={"file": ("foto.png", _png(image), "image/png")})
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def _make_legacy_restored(photo_id: str) -> None:
+    """Restauración del formato viejo: PNG en photos/ y entrada sin restored_url."""
+    (STORAGE_DIR / "photos" / f"{photo_id}_restored.png").write_bytes(
+        (STORAGE_DIR / "photos" / f"{photo_id}.png").read_bytes()
+    )
+    entries = json.loads((STORAGE_DIR / "album.json").read_text(encoding="utf-8"))
+    for entry in entries:
+        if entry["id"] == photo_id:
+            entry["restored"] = True
+            entry.pop("restored_url", None)
+    (STORAGE_DIR / "album.json").write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
 
 
 def test_health(client):
@@ -133,3 +151,127 @@ def test_buscar_parecidas(client):
     assert len(matches) == 2, "deberían quedar exactamente dos fotos para comparar"
     assert matches[0]["photo"]["id"] == near_id
     assert matches[0]["distance"] < matches[1]["distance"]
+
+
+def test_digitalizar_guarda_en_su_carpeta(client):
+    image, _ = synth.paper_on_table()
+    before = {item["id"] for item in client.get("/api/gallery").json()}
+    response = client.post("/api/scan", files={"file": ("mesa.png", _png(image), "image/png")})
+    assert response.status_code == 200, response.text
+
+    new = [item for item in client.get("/api/gallery").json() if item["kind"] == "scanned" and item["id"] not in before]
+    assert len(new) == 1
+    item = new[0]
+    assert (STORAGE_DIR / "scanned" / f"{item['id']}.png").exists()
+    media = client.get(item["url"])
+    assert media.status_code == 200 and media.headers["content-type"].startswith("image/")
+
+
+def test_restaurar_guarda_en_su_carpeta(client):
+    body = _upload(client, synth.photo(seed=45))
+    response = client.post(f"/api/photos/{body['id']}/restore")
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["restored_url"] == f"/media/restored/{body['id']}.png"
+    assert (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+    assert not (STORAGE_DIR / "photos" / f"{body['id']}_restored.png").exists()
+
+    detail = client.get(f"/api/photos/{body['id']}").json()
+    assert detail["restored"] is True
+    assert detail["restored_url"] == out["restored_url"]
+
+    saved = [item for item in client.get("/api/gallery").json() if item["kind"] == "restored" and item["source_id"] == body["id"]]
+    assert len(saved) == 1
+    assert saved[0]["url"] == out["restored_url"]
+    assert client.get(saved[0]["url"]).status_code == 200
+
+
+def test_galeria_separa_digitalizadas_de_restauradas(client):
+    _clear_album(client)
+    body = _upload(client, synth.photo(seed=51))
+    assert client.post(f"/api/photos/{body['id']}/restore").status_code == 200
+
+    image, _ = synth.paper_on_table()
+    assert client.post("/api/scan", files={"file": ("mesa.png", _png(image), "image/png")}).status_code == 200
+
+    items = client.get("/api/gallery").json()
+    kinds = {item["kind"] for item in items}
+    assert {"scanned", "restored"} <= kinds
+    assert all(item["url"].startswith("/media/") for item in items)
+    restored = [item for item in items if item["kind"] == "restored" and item["source_id"] == body["id"]]
+    assert len(restored) == 1
+    assert restored[0]["id"] == body["id"]
+
+
+def test_borrar_foto_borra_su_restauracion(client):
+    body = _upload(client, synth.photo(seed=61))
+    assert client.post(f"/api/photos/{body['id']}/restore").status_code == 200
+    assert client.delete(f"/api/photos/{body['id']}").status_code == 204
+
+    assert not (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+    saved = [item for item in client.get("/api/gallery").json() if item["source_id"] == body["id"]]
+    assert saved == []
+
+
+def test_galeria_muestra_restauraciones_viejas(client):
+    body = _upload(client, synth.photo(seed=71))
+    _make_legacy_restored(body["id"])
+
+    legacy_url = f"/media/photos/{body['id']}_restored.png"
+    assert client.get(f"/api/photos/{body['id']}").json()["restored_url"] == legacy_url
+
+    saved = [item for item in client.get("/api/gallery").json() if item["kind"] == "restored" and item["source_id"] == body["id"]]
+    assert len(saved) == 1
+    assert saved[0]["url"] == legacy_url
+    assert client.get(legacy_url).status_code == 200
+
+
+def test_eliminar_digitalizada_de_la_galeria(client):
+    image, _ = synth.paper_on_table()
+    before = {item["id"] for item in client.get("/api/gallery").json()}
+    assert client.post("/api/scan", files={"file": ("mesa.png", _png(image), "image/png")}).status_code == 200
+
+    item = next(
+        item for item in client.get("/api/gallery").json() if item["kind"] == "scanned" and item["id"] not in before
+    )
+    path = STORAGE_DIR / "scanned" / f"{item['id']}.png"
+    assert path.exists()
+
+    assert client.delete(f"/api/gallery/scanned/{item['id']}").status_code == 204
+    assert not path.exists()
+    assert client.delete(f"/api/gallery/scanned/{item['id']}").status_code == 404
+    assert all(other["id"] != item["id"] for other in client.get("/api/gallery").json())
+
+
+def test_eliminar_restaurada_no_borra_la_foto_original(client):
+    body = _upload(client, synth.photo(seed=81))
+    response = client.post(f"/api/photos/{body['id']}/restore")
+    assert response.status_code == 200, response.text
+    restored_url = response.json()["restored_url"]
+
+    assert client.delete(f"/api/gallery/restored/{body['id']}").status_code == 204
+    assert not (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+    assert client.get(restored_url).status_code == 404
+
+    detail = client.get(f"/api/photos/{body['id']}")
+    assert detail.status_code == 200
+    assert detail.json()["restored"] is False
+    assert detail.json()["restored_url"] is None
+    saved = [item for item in client.get("/api/gallery").json() if item["kind"] == "restored" and item["source_id"] == body["id"]]
+    assert saved == []
+
+
+def test_eliminar_restauracion_vieja_de_la_galeria(client):
+    body = _upload(client, synth.photo(seed=82))
+    _make_legacy_restored(body["id"])
+    legacy_url = f"/media/photos/{body['id']}_restored.png"
+    assert client.get(legacy_url).status_code == 200
+
+    assert client.delete(f"/api/gallery/restored/{body['id']}").status_code == 204
+    assert not (STORAGE_DIR / "photos" / f"{body['id']}_restored.png").exists()
+    assert client.get(legacy_url).status_code == 404
+
+    detail = client.get(f"/api/photos/{body['id']}").json()
+    assert detail["restored"] is False
+    assert detail["restored_url"] is None
+    assert not [item for item in client.get("/api/gallery").json() if item["id"] == body["id"]]

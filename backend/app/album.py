@@ -1,11 +1,11 @@
-"""El álbum: guarda las fotos en disco y las indexa en un JSON.
+"""El álbum: guarda las fotos en disco y las indexa en un JSON. Dado.
 
 Esta clase es de la capa de aplicación (no del core): no procesa imágenes,
 solo administra archivos y metadatos. Todo el procesamiento real pasa por
 `album.*` (el core).
 
 Dos fotos son "casi iguales" si sus hashes perceptuales difieren en a lo
-sumo DUPLICATE_BITS de los 64 bits.
+sumo DUPLICATE_BITS de los 64 bits (ejercicio 55).
 """
 
 from __future__ import annotations
@@ -93,13 +93,26 @@ class Album:
     def read_image(self, entry: dict):
         return decode((self.photos_dir / entry["filename"]).read_bytes())
 
-    def mark_restored(self, entry: dict, image) -> None:
-        (self.photos_dir / f"{entry['id']}_restored.png").write_bytes(encode_png(image))
+    def mark_restored(self, entry: dict, restored_path: str) -> None:
+        """Anota la restauración; el PNG lo guarda la galería en storage/restored/."""
         entries = self._load()
         for e in entries:
             if e["id"] == entry["id"]:
                 e["restored"] = True
+                e["restored_url"] = restored_path
         self._save(entries)
+
+    def clear_restored(self, photo_id: str) -> None:
+        """La foto sigue en el álbum, pero ya no tiene una restauración asociada."""
+        entries = self._load()
+        changed = False
+        for e in entries:
+            if e["id"] == photo_id and (e.get("restored") or e.get("restored_url")):
+                e["restored"] = False
+                e.pop("restored_url", None)
+                changed = True
+        if changed:
+            self._save(entries)
 
     # ------------------------------------------------------------- duplicados
 

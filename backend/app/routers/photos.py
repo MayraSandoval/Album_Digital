@@ -4,18 +4,25 @@ from fastapi import APIRouter, HTTPException, UploadFile
 
 from app.album import Album
 from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
+from app.gallery import Gallery
 from app.schemas import ErrorOut, PhotoOut, QualityOut
 from app.uploads import read_upload
 from album.quality import diagnose
 
 router = APIRouter(prefix="/api/photos", tags=["fotos"])
 album = Album(STORAGE_DIR)
+gallery = Gallery(STORAGE_DIR)
 
 ERRORS = {400: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
 
 def _photo_out(entry: dict) -> PhotoOut:
-    restored_url = f"{MEDIA_URL}/photos/{entry['id']}_restored.png" if entry.get("restored") else None
+    restored_url = None
+    if entry.get("restored"):
+        # Restauraciones nuevas: ruta relativa anotada por la galería.
+        # Restauraciones viejas: el PNG quedó junto a la foto original.
+        relative = entry.get("restored_url") or f"photos/{entry['id']}_restored.png"
+        restored_url = f"{MEDIA_URL}/{relative}"
     return PhotoOut(
         id=entry["id"],
         width=entry["width"],
@@ -75,6 +82,7 @@ def diagnose_photo(photo_id: str):
 def delete_photo(photo_id: str):
     if not album.delete(photo_id):
         raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
+    gallery.remove_restored(photo_id)
 
 
 _ = PHOTOS_DIR  # se usa vía Album; import explícito para que aparezca en el namespace
