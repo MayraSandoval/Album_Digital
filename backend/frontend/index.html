@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Álbum Digital</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --fg: #1d2330; --muted: #5f6b7a; --border: #e2e5ea; --soft: #f2f4f7;
+    --accent: #3b5bdb; --accent-soft: #e9edff; --ok: #2b7a3b; --ok-soft: #e7f5ea;
+    --warn: #a15c00; --warn-soft: #fff4e2; --bad: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, "Segoe UI", Roboto, sans-serif; }
+  header { border-bottom: 1px solid var(--border); padding: 20px 24px; }
+  h1 { margin: 0; font-size: 22px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+  nav { display: flex; gap: 4px; padding: 10px 24px 0; border-bottom: 1px solid var(--border); }
+  nav button { border: 1px solid transparent; border-bottom: none; background: none; padding: 8px 14px; cursor: pointer; font: inherit; color: var(--muted); border-radius: 8px 8px 0 0; }
+  nav button.active { background: var(--bg); color: var(--fg); border-color: var(--border); font-weight: 600; }
+  main { max-width: 1080px; margin: 0 auto; padding: 20px 24px 64px; }
+  section { display: none; }
+  section.active { display: block; }
+  .fila { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 0 0 18px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #fff; }
+  .card img { width: 100%; height: 150px; object-fit: contain; background: var(--soft); border-radius: 6px; }
+  .meta { color: var(--muted); font-size: 12.5px; margin: 8px 0; }
+  .acciones { display: flex; flex-wrap: wrap; gap: 6px; }
+  button.chico { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--soft); cursor: pointer; }
+  button.chico:hover { border-color: var(--accent); color: var(--accent); }
+  button.primario { background: var(--accent); border: 1px solid var(--accent); color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font: inherit; }
+  .badge { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; }
+  .badge.dup { background: var(--warn-soft); color: var(--warn); }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .aviso { border: 1px solid var(--border); background: var(--soft); border-radius: 10px; padding: 12px 16px; color: var(--muted); }
+  .aviso.error { border-color: #e6b8b5; background: #fdeceb; color: var(--bad); }
+  .antes-despues { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .antes-despues figure { margin: 0; }
+  .antes-despues img { width: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--soft); }
+  .antes-despues figcaption { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  .pasos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .paso { font-size: 12.5px; border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; }
+  .paso.done { background: var(--ok-soft); color: var(--ok); }
+  .paso.pending { color: var(--muted); }
+  .paso.failed { background: #fdeceb; color: var(--bad); }
+  .paso.blocked { color: var(--muted); opacity: .7; }
+  label { font-size: 13px; color: var(--muted); }
+  select, input[type=number] { font: inherit; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: #fff; }
+  input[type=color] { width: 44px; height: 32px; padding: 2px; border: 1px solid var(--border); border-radius: 7px; background: #fff; cursor: pointer; }
+  .vacio { color: var(--muted); padding: 32px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Álbum digital</h1>
+  <p>Digitalizá, restaurá y organizá tus fotos — Trabajo Final Integrador · Técnicas de Procesamiento Digital de Imágenes</p>
+</header>
+<nav>
+  <button data-tab="album" class="active">Álbum</button>
+  <button data-tab="digitalizar">Digitalizar</button>
+  <button data-tab="buscar">Buscar</button>
+</nav>
+<main>
+
+<section id="album" class="active">
+  <div class="fila">
+    <input type="file" id="subir" accept="image/*" hidden>
+    <button class="primario" onclick="document.getElementById('subir').click()">Subir foto</button>
+    <span id="subir-estado" class="meta"></span>
+  </div>
+  <div id="album-grid" class="grid"></div>
+  <div id="album-vacio" class="vacio">El álbum está vacío: subí la primera foto.</div>
+</section>
+
+<section id="digitalizar">
+  <div class="fila">
+    <input type="file" id="escanear" accept="image/*" hidden>
+    <button class="primario" onclick="document.getElementById('escanear').click()">Elegir foto de la mesa</button>
+    <span id="scan-estado" class="meta"></span>
+  </div>
+  <div id="scan-resultado"></div>
+</section>
+
+<section id="buscar">
+  <div class="fila">
+    <label>Color</label>
+    <input type="color" id="color-busqueda" value="#b41919">
+    <label>fracción mínima</label>
+    <input type="number" id="color-min" value="0.05" min="0" max="1" step="0.05" style="width:70px">
+    <button class="primario" onclick="buscarPorColor()">Buscar por color</button>
+  </div>
+  <div id="buscar-resultado"></div>
+</section>
+
+</main>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+
+// ------------------------------------------------------------------ pestañas
+document.querySelectorAll("nav button").forEach((boton) => {
+  boton.onclick = () => {
+    document.querySelectorAll("nav button, main section").forEach((n) => n.classList.remove("active"));
+    boton.classList.add("active");
+    $("#" + boton.dataset.tab).classList.add("active");
+  };
+});
+
+function escapar(texto) {
+  const div = document.createElement("div");
+  div.textContent = String(texto);
+  return div.innerHTML;
+}
+
+async function leerRespuesta(response) {
+  if (response.ok) return response;
+  let detalle = `Error ${response.status}`;
+  try { detalle = (await response.json()).detail || detalle; } catch (e) {}
+  throw new Error(detalle);
+}
+
+function mostrarError(contenedor, error) {
+  contenedor.innerHTML = `<div class="aviso error">${escapar(error.message)}</div>`;
+}
+
+const kb = (bytes) => (bytes / 1024).toFixed(0) + " KB";
+const SIMBOLOS = { done: "✓", pending: "·", blocked: "−", failed: "✗" };
+
+// ------------------------------------------------------------------- álbum
+async function cargarAlbum() {
+  const fotos = await (await fetch("/api/photos")).json();
+  $("#album-vacio").style.display = fotos.length ? "none" : "block";
+  $("#album-grid").innerHTML = "";
+  for (const foto of fotos) {
+    const card = document.createElement("div");
+    card.className = "card";
+    const dup = foto.duplicates.length
+      ? ` <span class="badge dup" title="Hash perceptual casi idéntico">posible duplicado ×${foto.duplicates.length}</span>` : "";
+    const restaurada = foto.restored ? ` <span class="badge ok">restaurada</span>` : "";
+    card.innerHTML = `
+      <img src="${foto.url}" alt="foto ${escapar(foto.id)}">
+      <div class="meta">${foto.width}×${foto.height} · ${escapar(foto.mode)} · ${kb(foto.size_bytes)}${dup}${restaurada}</div>
+      <div class="acciones">
+        <button class="chico" onclick='restaurar("${foto.id}")'>Restaurar</button>
+        <button class="chico" onclick='buscarParecidas("${foto.id}")'>Parecidas</button>
+        <button class="chico" onclick='borrar("${foto.id}")'>Borrar</button>
+      </div>`;
+    $("#album-grid").appendChild(card);
+  }
+}
+
+document.getElementById("subir").onchange = async (evento) => {
+  const archivo = evento.target.files[0];
+  evento.target.value = "";
+  if (!archivo) return;
+  $("#subir-estado").textContent = `Subiendo ${archivo.name}…`;
+  try {
+    const datos = new FormData();
+    datos.append("file", archivo);
+    const foto = await (await leerRespuesta(await fetch("/api/photos", { method: "POST", body: datos }))).json();
+    $("#subir-estado").textContent = foto.duplicates.length
+      ? `Subida (${foto.id}): ojo, ya tenías ${foto.duplicates.length} copia(s) casi igual(es).`
+      : `Subida (${foto.id}).`;
+    await cargarAlbum();
+  } catch (error) {
+    $("#subir-estado").textContent = "";
+    mostrarError($("#album-grid"), error);
+  }
+};
+
+async function borrar(id) {
+  await leerRespuesta(await fetch(`/api/photos/${id}`, { method: "DELETE" }));
+  await cargarAlbum();
+}
+
+async function restaurar(id) {
+  const detalle = await (await leerRespuesta(await fetch(`/api/photos/${id}`))).json();
+  const datos = new FormData();
+  datos.append("denoise", "auto");
+  datos.append("scratches", "true");
+  datos.append("contrast", "true");
+  const salida = await (await leerRespuesta(await fetch(`/api/photos/${id}/restore`, { method: "POST", body: datos }))).json();
+  const pasos = salida.steps.map((paso) =>
+    `<span class="paso ${paso.status}">${SIMBOLOS[paso.status] || "?"} ${escapar(paso.label)}${paso.message ? " — " + escapar(paso.message) : ""}</span>`
+  ).join("");
+  $("#album-vacio").style.display = "none";
+  const panel = document.createElement("div");
+  panel.className = "card";
+  panel.style.marginTop = "18px";
+  panel.innerHTML = `
+    <strong>Restauración de ${escapar(id)}</strong> ${salida.complete ? '<span class="badge ok">completa</span>' : '<span class="badge dup">incompleta</span>'}
+    <div class="antes-despues">
+      <figure><img src="${salida.original_url}"><figcaption>Original</figcaption></figure>
+      ${salida.restored_url ? `<figure><img src="${salida.restored_url}"><figcaption>Restaurada</figcaption></figure>` : ""}
+    </div>
+    <div class="pasos">${pasos || '<span class="meta">Sin pasos activos.</span>'}</div>`;
+  $("#album-grid").prepend(panel);
+  await cargarAlbum();
+}
+
+// ------------------------------------------------------------- digitalizar
+document.getElementById("escanear").onchange = async (evento) => {
+  const archivo = evento.target.files[0];
+  evento.target.value = "";
+  if (!archivo) return;
+  $("#scan-estado").textContent = `Buscando la hoja en ${archivo.name}…`;
+  try {
+    const datos = new FormData();
+    datos.append("file", archivo);
+    const response = await fetch("/api/scan", { method: "POST", body: datos });
+    await leerRespuesta(response);
+    const url = URL.createObjectURL(await response.blob());
+    $("#scan-resultado").innerHTML = `
+      <div class="antes-despues">
+        <figure><img src="${url}"><figcaption>Digitalizada (enderezada)</figcaption></figure>
+      </div>`;
+    $("#scan-estado").textContent = "Listo.";
+  } catch (error) {
+    $("#scan-estado").textContent = "";
+    mostrarError($("#scan-resultado"), error);
+  }
+};
+
+// ------------------------------------------------------------------ buscar
+async function buscarPorColor() {
+  const hex = $("#color-busqueda").value.slice(1);
+  const min = $("#color-min").value;
+  try {
+    const resultados = await (await leerRespuesta(await fetch(`/api/search/color?hex=${hex}&min=${min}`))).json();
+    $("#buscar-resultado").innerHTML = resultados.length ? "" :
+      '<div class="aviso">Ninguna foto tiene ese color en la fracción pedida.</div>';
+    for (const { photo, fraction } of resultados) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.maxWidth = "240px";
+      card.innerHTML = `
+        <img src="${photo.url}">
+        <div class="meta">${(fraction * 100).toFixed(0)}% de píxeles de ese color</div>`;
+      $("#buscar-resultado").appendChild(card);
+    }
+  } catch (error) {
+    mostrarError($("#buscar-resultado"), error);
+  }
+}
+
+async function buscarParecidas(id) {
+  document.querySelector('nav button[data-tab="buscar"]').click();
+  try {
+    const resultados = await (await leerRespuesta(await fetch(`/api/search/similar/${id}`))).json();
+    $("#buscar-resultado").innerHTML = resultados.length ? "" :
+      '<div class="aviso">No hay otras fotos para comparar.</div>';
+    for (const { photo, distance } of resultados) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.maxWidth = "240px";
+      card.style.display = "inline-block";
+      card.style.marginRight = "12px";
+      card.innerHTML = `
+        <img src="${photo.url}">
+        <div class="meta">distancia de histograma: ${distance.toFixed(3)}</div>`;
+      $("#buscar-resultado").appendChild(card);
+    }
+  } catch (error) {
+    mostrarError($("#buscar-resultado"), error);
+  }
+}
+
+cargarAlbum();
+</script>
+</body>
+</html>
