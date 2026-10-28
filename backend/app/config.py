@@ -1,4 +1,4 @@
-"""Configuración de la capa de aplicación. Dado.
+"""Configuración de la capa de aplicación.
 
 `ALBUM_STORAGE` (variable de entorno) permite apuntar el almacenamiento a
 otra carpeta — la usan los tests para no tocar tus fotos.

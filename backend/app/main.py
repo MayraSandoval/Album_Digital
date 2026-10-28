@@ -1,4 +1,4 @@
-"""Aplicación web del álbum. Dado.
+"""Aplicación web del álbum.
 
 Sirve el frontend y la API; el procesamiento vive en el paquete `album`
 (el core), que también se usa desde la consola (`python -m album`).

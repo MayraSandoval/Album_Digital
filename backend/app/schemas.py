@@ -1,4 +1,4 @@
-"""Schemas de la API (pydantic). Dado."""
+"""Schemas de la API (pydantic)."""
 
 from __future__ import annotations
 

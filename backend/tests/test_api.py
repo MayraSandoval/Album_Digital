@@ -1,7 +1,5 @@
 """Tests de contrato de la API (todo el flujo del álbum).
 
-Mientras el core tenga partes sin implementar, los endpoints afectados
-responden 501: estos tests fallan hasta que implementes cada módulo.
 """
 
 from __future__ import annotations

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Álbum Digital Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for a professional look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #171717; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #404040; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #525252; 
+        }
+
+        /* Checkbox styling */
+        .custom-checkbox:checked + div {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .custom-checkbox:checked + div svg {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-neutral-900 text-neutral-200 h-screen w-screen overflow-hidden flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="h-14 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between px-6 shrink-0">
+        <div class="flex items-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <h1 class="text-sm font-semibold tracking-wide text-neutral-100">ÁLBUM DIGITAL <span class="text-neutral-500 font-normal">STUDIO</span></h1>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-4 text-xs font-medium text-neutral-400">
+            <a href="/buscar.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span class="hidden sm:inline">Buscar</span>
+            </a>
+            <a href="/galeria.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span class="hidden sm:inline">Galería</span>
+            </a>
+            <span id="status-indicator" class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-neutral-500" id="api-status-dot"></span>
+                <span id="api-status-text" class="hidden sm:inline">Conectando…</span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left / Center: Canvas & Dropzone -->
+        <section class="flex-1 relative bg-neutral-900 flex flex-col">
+            <!-- Toolbar -->
+            <div class="h-12 border-b border-neutral-800 flex items-center px-4 gap-2 bg-neutral-900/50">
+                <button onclick="resetWorkspace()" id="btn-reset" class="hidden p-2 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors" title="Cerrar imagen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+                <div class="flex-1"></div>
+                <div id="canvas-zoom-controls" class="hidden items-center gap-3 text-xs text-neutral-400">
+                    <button class="hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg></button>
+                    <span>100%</span>
+                    <button class="hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg></button>
+                </div>
+            </div>
+
+            <!-- Dropzone -->
+            <div id="dropzone" class="absolute inset-0 flex flex-col items-center justify-center p-8 mt-12 transition-all duration-300">
+                <div class="w-full max-w-lg border-2 border-dashed border-neutral-700 rounded-2xl bg-neutral-800/30 flex flex-col items-center justify-center p-12 text-center hover:bg-neutral-800/50 hover:border-indigo-500/50 transition-colors group cursor-pointer" onclick="document.getElementById('file-upload').click()">
+                    <div class="w-16 h-16 mb-4 rounded-full bg-neutral-800 flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-indigo-500/20 group-hover:text-indigo-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-neutral-200 mb-2">Arrastra tu foto aquí</h3>
+                    <p class="text-sm text-neutral-400 mb-6">Soporta JPG y PNG (máx. 20 MB)</p>
+                    <button class="px-5 py-2.5 bg-neutral-700 hover:bg-neutral-600 text-sm font-medium rounded-lg transition-colors">
+                        Explorar archivos
+                    </button>
+                    <input id="file-upload" type="file" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+
+            <!-- Canvas (Viewer: original vs procesada) -->
+            <div id="canvas-area" class="hidden absolute inset-0 mt-12 bg-neutral-900 overflow-y-auto p-4">
+                <div class="min-h-full w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                    <!-- Original -->
+                    <div class="flex flex-col min-h-[260px] lg:min-h-0 min-w-0">
+                        <div class="flex items-center mb-2 px-1">
+                            <span class="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">Original</span>
+                        </div>
+                        <div class="relative flex-1 min-h-0 rounded-lg border border-neutral-800 bg-neutral-950/60 flex items-center justify-center overflow-hidden">
+                            <img id="original-image" alt="Foto original" class="max-w-full max-h-full object-contain">
+                        </div>
+                        <!-- espacio reservado para alinear con el botón de descarga en escritorio -->
+                        <div class="mt-3 h-10 shrink-0 hidden lg:block" aria-hidden="true"></div>
+                    </div>
+
+                    <!-- Procesada -->
+                    <div class="flex flex-col min-h-[260px] lg:min-h-0 min-w-0">
+                        <div class="flex items-center mb-2 px-1">
+                            <span class="text-[11px] font-semibold uppercase tracking-widest text-indigo-400">Procesada</span>
+                        </div>
+                        <div class="relative flex-1 min-h-0 rounded-lg border border-neutral-800 bg-neutral-950/60 flex items-center justify-center overflow-hidden">
+                            <img id="processed-image" alt="Foto procesada" class="hidden max-w-full max-h-full object-contain">
+                            <div id="processed-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-neutral-600"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                <p class="text-sm text-neutral-400">Todavía no hay una versión procesada</p>
+                                <p class="text-xs text-neutral-600">Usá Digitalizar o Restaurar para generar el resultado.</p>
+                            </div>
+                            <!-- Overlay loading -->
+                            <div id="canvas-overlay" class="hidden absolute inset-0 bg-neutral-900/70 z-20 backdrop-blur-sm flex items-center justify-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <span id="canvas-overlay-text" class="text-sm font-medium text-white shadow-sm">Procesando...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 min-h-10 shrink-0 flex items-center justify-center">
+                            <a id="btn-download" download aria-disabled="true" class="inline-flex items-center justify-center gap-2 h-9 max-w-full px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm font-medium text-neutral-200 transition-colors whitespace-nowrap opacity-40 pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                <span class="hidden sm:inline">Descargar imagen procesada</span>
+                                <span class="sm:hidden">Descargar</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar (Tools) -->
+        <aside class="w-80 bg-neutral-950 border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto">
+            
+            <div class="p-4 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-10">
+                <h2 class="text-xs font-bold tracking-widest text-neutral-500 uppercase">Herramientas</h2>
+            </div>
+
+            <div class="p-4 flex flex-col gap-6" id="tools-container">
+                
+                <!-- Tool: Digitalizar -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-scan">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="m6 12-3 3 3 3"/></svg>
+                        <h3 class="text-sm font-semibold">Digitalizar</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Detecta la hoja impresa y corrige la perspectiva automáticamente.</p>
+                    <button id="btn-scan" onclick="processScan()" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm font-medium transition-all group overflow-hidden">
+                        <span class="relative z-10 flex items-center gap-2 btn-content">
+                            Recortar y Centrar
+                        </span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800">
+                            <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+                </div>
+
+                <hr class="border-neutral-800">
+
+                <!-- Tool: Calidad -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-quality">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-teal-400"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>
+                        <h3 class="text-sm font-semibold">Diagnóstico</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Analiza la nitidez y el nivel de ruido de la fotografía.</p>
+                    
+                    <button id="btn-diagnose" onclick="processDiagnose()" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm font-medium transition-all mb-3">
+                        <span class="btn-content">Analizar Calidad</span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800">
+                            <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+
+                    <!-- Quality Report Results (Hidden by default) -->
+                    <div id="quality-results" class="hidden bg-neutral-900 border border-neutral-800 rounded-lg p-3 text-xs space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-neutral-400">Nitidez (Sharpness)</span>
+                            <span id="val-sharpness" class="font-mono text-neutral-200">--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-neutral-400">Ruido (Noise)</span>
+                            <span id="val-noise" class="font-mono text-neutral-200">--</span>
+                        </div>
+                        <div class="pt-2 mt-2 border-t border-neutral-800 grid grid-cols-2 gap-2">
+                            <div id="badge-blurry" class="flex flex-col items-center p-1.5 rounded bg-neutral-800 text-neutral-500">
+                                <span class="font-medium">Borrosa</span>
+                                <span class="status-icon">-</span>
+                            </div>
+                            <div id="badge-noisy" class="flex flex-col items-center p-1.5 rounded bg-neutral-800 text-neutral-500">
+                                <span class="font-medium">Ruidosa</span>
+                                <span class="status-icon">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-neutral-800">
+
+                <!-- Tool: Restauración -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-restore">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>
+                        <h3 class="text-sm font-semibold">Restauración</h3>
+                    </div>
+                    
+                    <div class="space-y-2 mb-4 bg-neutral-900 p-3 rounded-lg border border-neutral-800">
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" id="opt-denoise" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
+                                <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
+                                    <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
+                                </div>
+                            </div>
+                            <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Reducción de ruido (Auto)</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" id="opt-scratches" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
+                                <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
+                                    <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
+                                </div>
+                            </div>
+                            <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Reparar rasguños</span>
+                        </label>
+                        <label class="flex items-center gap-3 cursor-pointer group">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" id="opt-contrast" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
+                                <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
+                                    <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
+                                </div>
+                            </div>
+                            <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Realce de contraste</span>
+                        </label>
+                    </div>
+
+                    <button id="btn-restore" onclick="processRestore()" class="w-full relative flex items-center justify-center py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-sm font-medium text-white transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+                        <span class="btn-content flex items-center gap-2">
+                            Restaurar Foto
+                        </span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-indigo-600 rounded-lg">
+                            <div class="w-4 h-4 border-2 border-indigo-200 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+
+                    <!-- Restoration Progress -->
+                    <div id="restore-progress" class="hidden mt-4">
+                        <div class="text-xs font-medium text-neutral-400 mb-2">Proceso:</div>
+                        <ul class="space-y-2 text-xs" id="progress-list">
+                            <!-- Steps added dynamically -->
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-8 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        // --- State ---
+        let state = {
+            file: null,              // archivo de trabajo que se sube y procesa
+            originalName: null,      // nombre del archivo elegido al inicio
+            originalUrl: null,       // object URL del original (panel izquierdo)
+            processedUrl: null,      // URL de la versión procesada (object URL o servidor)
+            processedObjectUrl: false,
+            processedName: null,     // nombre sugerido al descargar
+            photoId: null,           // id en el álbum; null = todavía no se subió
+            photoUrl: null,          // URL del servidor de la foto actual
+            busy: false,
+            restored: false
+        };
+
+        const DOM = {
+            dropzone: document.getElementById('dropzone'),
+            canvasArea: document.getElementById('canvas-area'),
+            originalImage: document.getElementById('original-image'),
+            processedImage: document.getElementById('processed-image'),
+            processedPlaceholder: document.getElementById('processed-placeholder'),
+            download: document.getElementById('btn-download'),
+            btnReset: document.getElementById('btn-reset'),
+            zoomControls: document.getElementById('canvas-zoom-controls'),
+            panels: document.querySelectorAll('.tool-panel'),
+            overlay: document.getElementById('canvas-overlay'),
+            overlayText: document.getElementById('canvas-overlay-text'),
+            toastContainer: document.getElementById('toast-container')
+        };
+
+        // --- API helpers ---
+        async function api(path, options = {}) {
+            const response = await fetch(path, options);
+            if (response.ok) return response;
+            let detail = `Error ${response.status}`;
+            try {
+                const body = await response.json();
+                if (typeof body.detail === "string") detail = body.detail;
+                else if (Array.isArray(body.detail)) detail = body.detail.map((item) => item.msg).join(" · ");
+            } catch (_) {}
+            throw new Error(detail);
+        }
+
+        async function apiJson(path, options = {}) {
+            return (await api(path, options)).json();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        async function ensureUploaded() {
+            if (state.photoId) return state.photoId;
+            if (!state.file) throw new Error("No hay ninguna foto cargada.");
+            const form = new FormData();
+            form.append("file", state.file, state.file.name || "foto.png");
+            const photo = await apiJson("/api/photos", { method: "POST", body: form });
+            state.photoId = photo.id;
+            state.photoUrl = photo.url;
+            if (photo.duplicates.length) {
+                showToast(`Foto subida (${photo.id}). Ya tenías ${photo.duplicates.length} parecida(s).`, "info");
+            } else {
+                showToast(`Foto subida al álbum (${photo.id}).`, "success");
+            }
+            return photo.id;
+        }
+
+        async function checkApi() {
+            const dot = document.getElementById("api-status-dot");
+            const text = document.getElementById("api-status-text");
+            try {
+                await api("/api/health");
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                text.textContent = "API conectada";
+            } catch (_) {
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                text.textContent = "API desconectada";
+            }
+        }
+
+        // --- Init & Event Listeners ---
+        function init() {
+            // Drag and drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            DOM.dropzone.addEventListener('dragenter', highlightDropzone, false);
+            DOM.dropzone.addEventListener('dragover', highlightDropzone, false);
+            DOM.dropzone.addEventListener('dragleave', unhighlightDropzone, false);
+            DOM.dropzone.addEventListener('drop', handleDrop, false);
+
+            checkApi();
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlightDropzone() {
+            DOM.dropzone.querySelector('div').classList.add('border-indigo-500', 'bg-neutral-800/60');
+        }
+
+        function unhighlightDropzone() {
+            DOM.dropzone.querySelector('div').classList.remove('border-indigo-500', 'bg-neutral-800/60');
+        }
+
+        function handleDrop(e) {
+            unhighlightDropzone();
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            e.target.value = "";  // permite volver a elegir el mismo archivo
+            if (file) handleFile(file);
+        }
+
+        // --- Core Functions ---
+        function revokeObjectUrl(url) {
+            if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+        }
+
+        function baseName(name) {
+            return (name || 'foto').replace(/\.[^.]+$/, '') || 'foto';
+        }
+
+        function setProcessed(url, name, { fromObjectUrl = false } = {}) {
+            if (state.processedObjectUrl) revokeObjectUrl(state.processedUrl);
+            state.processedUrl = url;
+            state.processedObjectUrl = fromObjectUrl;
+            state.processedName = name;
+            DOM.processedImage.src = url;
+            DOM.processedImage.classList.remove('hidden');
+            DOM.processedPlaceholder.classList.add('hidden');
+            DOM.download.href = url;
+            DOM.download.download = name;
+            DOM.download.classList.remove('opacity-40', 'pointer-events-none');
+            DOM.download.setAttribute('aria-disabled', 'false');
+        }
+
+        function clearProcessed() {
+            if (state.processedObjectUrl) revokeObjectUrl(state.processedUrl);
+            state.processedUrl = null;
+            state.processedObjectUrl = false;
+            state.processedName = null;
+            DOM.processedImage.removeAttribute('src');
+            DOM.processedImage.classList.add('hidden');
+            DOM.processedPlaceholder.classList.remove('hidden');
+            DOM.download.removeAttribute('href');
+            DOM.download.classList.add('opacity-40', 'pointer-events-none');
+            DOM.download.setAttribute('aria-disabled', 'true');
+        }
+
+        async function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('Por favor subí un archivo de imagen válido.', 'error');
+                return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+                showToast('La foto supera los 20 MB.', 'error');
+                return;
+            }
+
+            if (state.originalUrl) revokeObjectUrl(state.originalUrl);
+            clearProcessed();
+
+            state.file = file;
+            state.originalName = file.name;
+            state.originalUrl = URL.createObjectURL(file);
+            state.photoId = null;
+            state.photoUrl = null;
+            state.restored = false;
+            DOM.originalImage.src = state.originalUrl;
+
+            // Switch UI
+            DOM.dropzone.classList.add('hidden');
+            DOM.canvasArea.classList.remove('hidden');
+            DOM.btnReset.classList.remove('hidden');
+            DOM.zoomControls.classList.remove('hidden');
+            DOM.zoomControls.classList.add('flex');
+
+            document.getElementById('quality-results').classList.add('hidden');
+            document.getElementById('restore-progress').classList.add('hidden');
+
+            enableTools();
+            showToast(`Foto cargada: ${file.name}`, 'info');
+        }
+
+        function resetWorkspace() {
+            if (state.originalUrl) revokeObjectUrl(state.originalUrl);
+            clearProcessed();
+            state = {
+                file: null,
+                originalName: null,
+                originalUrl: null,
+                processedUrl: null,
+                processedObjectUrl: false,
+                processedName: null,
+                photoId: null,
+                photoUrl: null,
+                busy: false,
+                restored: false
+            };
+            DOM.originalImage.removeAttribute('src');
+            DOM.canvasArea.classList.add('hidden');
+            DOM.dropzone.classList.remove('hidden');
+            DOM.btnReset.classList.add('hidden');
+            DOM.zoomControls.classList.add('hidden');
+            DOM.zoomControls.classList.remove('flex');
+            DOM.overlay.classList.add('hidden');
+
+            // Reset tools
+            DOM.panels.forEach(p => {
+                p.classList.add('opacity-50', 'pointer-events-none');
+            });
+            document.getElementById('quality-results').classList.add('hidden');
+            document.getElementById('restore-progress').classList.add('hidden');
+            document.getElementById('progress-list').innerHTML = '';
+        }
+
+        function enableTools() {
+            DOM.panels.forEach(p => {
+                p.classList.remove('opacity-50', 'pointer-events-none');
+            });
+        }
+
+        // --- Action Handlers (API real) ---
+
+        async function processScan() {
+            if (state.busy || !state.file) return;
+            setProcessing('btn-scan', 'Buscando la hoja...');
+
+            try {
+                const form = new FormData();
+                form.append('file', state.file, state.file.name || 'mesa.png');
+                const blob = await (await api('/api/scan', { method: 'POST', body: form })).blob();
+                const scanned = new File([blob], 'digitalizada.png', { type: 'image/png' });
+
+                state.file = scanned;  // el PNG corregido pasa a ser el archivo de trabajo
+                state.photoId = null;  // se sube recién cuando hace falta
+                state.photoUrl = null;
+                state.restored = false;
+                setProcessed(URL.createObjectURL(scanned), 'digitalizada.png', { fromObjectUrl: true });
+                document.getElementById('quality-results').classList.add('hidden');
+                document.getElementById('restore-progress').classList.add('hidden');
+                showToast('Hoja detectada y guardada en la galería. Ya podés diagnosticarla o restaurarla.', 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-scan');
+            }
+        }
+
+        async function processDiagnose() {
+            if (state.busy || !state.file) return;
+            setProcessing('btn-diagnose', 'Analizando calidad...');
+
+            const results = document.getElementById('quality-results');
+            results.classList.add('hidden');
+
+            try {
+                const id = await ensureUploaded();
+                const report = await apiJson(`/api/photos/${id}/diagnose`);
+
+                document.getElementById('val-sharpness').textContent = report.sharpness.toFixed(1);
+                document.getElementById('val-noise').textContent = report.noise.toFixed(1);
+                updateBadge('badge-blurry', report.blurry);
+                updateBadge('badge-noisy', report.noisy);
+                results.classList.remove('hidden');
+
+                const estado = report.blurry || report.noisy ? 'conviene restaurarla' : 'se ve bien';
+                showToast(`Diagnóstico: ${estado}.`, report.blurry || report.noisy ? 'info' : 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-diagnose');
+            }
+        }
+
+        function updateBadge(id, isTrue) {
+            const el = document.getElementById(id);
+            const icon = el.querySelector('.status-icon');
+            el.className = `flex flex-col items-center p-1.5 rounded text-xs ${isTrue ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`;
+            icon.innerHTML = isTrue 
+                ? '<svg class="w-4 h-4 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+                : '<svg class="w-4 h-4 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+        }
+
+        async function processRestore() {
+            if (state.busy || !state.file) return;
+
+            const doDenoise = document.getElementById('opt-denoise').checked;
+            const doScratches = document.getElementById('opt-scratches').checked;
+            const doContrast = document.getElementById('opt-contrast').checked;
+
+            if (!doDenoise && !doScratches && !doContrast) {
+                showToast('Seleccioná al menos una opción de restauración.', 'info');
+                return;
+            }
+
+            setProcessing('btn-restore', 'Restaurando...');
+
+            const progressContainer = document.getElementById('restore-progress');
+            const progressList = document.getElementById('progress-list');
+            progressContainer.classList.remove('hidden');
+            progressList.innerHTML = `
+                <li class="flex items-center gap-2 text-neutral-400">
+                    <div class="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                    <span>Procesando pasos...</span>
+                </li>`;
+
+            try {
+                const id = await ensureUploaded();
+                const form = new FormData();
+                form.append('denoise', doDenoise ? 'auto' : 'none');
+                form.append('scratches', String(doScratches));
+                form.append('contrast', String(doContrast));
+                const out = await apiJson(`/api/photos/${id}/restore`, { method: 'POST', body: form });
+
+                renderSteps(out.steps);
+                if (out.restored_url) {
+                    setProcessed(
+                        `${out.restored_url}?t=${Date.now()}`,
+                        `${baseName(state.originalName)}_restaurada.png`
+                    );
+                    state.photoUrl = out.restored_url;
+                    state.restored = true;
+                }
+                showToast(
+                    out.complete ? 'Restauración completa y guardada en la galería.' : 'Restauración terminada; hay pasos pendientes.',
+                    out.complete ? 'success' : 'info'
+                );
+            } catch (err) {
+                progressList.innerHTML = '';
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-restore');
+            }
+        }
+
+        function renderSteps(steps) {
+            const progressList = document.getElementById('progress-list');
+            if (!steps.length) {
+                progressList.innerHTML = '<li class="text-neutral-500">Sin pasos activos.</li>';
+                return;
+            }
+            progressList.innerHTML = steps.map((step) => {
+                const color = step.status === 'done' ? 'text-emerald-400'
+                    : step.status === 'failed' ? 'text-red-400'
+                    : 'text-neutral-500';
+                const icon = step.status === 'done'
+                    ? '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                    : step.status === 'failed'
+                    ? '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+                    : '<span class="w-4 h-4 shrink-0 text-center leading-4">·</span>';
+                const message = step.message ? ` — ${escapeHtml(step.message)}` : '';
+                return `<li class="flex items-start gap-2 ${color}">${icon}<span>${escapeHtml(step.label)}${message}</span></li>`;
+            }).join('');
+        }
+
+        // --- UI Helpers ---
+
+        function setProcessing(btnId, overlayMsg) {
+            state.busy = true;
+            const btn = document.getElementById(btnId);
+            const content = btn.querySelector('.btn-content');
+            const loader = btn.querySelector('.btn-loader');
+            if (content) content.classList.add('opacity-0');
+            if (loader) loader.classList.remove('hidden');
+            btn.disabled = true;
+
+            DOM.overlayText.textContent = overlayMsg;
+            DOM.overlay.classList.remove('hidden');
+        }
+
+        function stopProcessing(btnId) {
+            state.busy = false;
+            const btn = document.getElementById(btnId);
+            const content = btn.querySelector('.btn-content');
+            const loader = btn.querySelector('.btn-loader');
+            if (content) content.classList.remove('opacity-0');
+            if (loader) loader.classList.add('hidden');
+            btn.disabled = false;
+
+            DOM.overlay.classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-neutral-800 border-neutral-700 text-white';
+            let icon = `<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+            
+            if (type === 'success') {
+                bgClass = 'bg-emerald-950 border-emerald-800 text-emerald-100';
+                icon = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+            } else if (type === 'error') {
+                bgClass = 'bg-red-950 border-red-800 text-red-100';
+                icon = `<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+            }
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg transform transition-all duration-300 translate-y-4 opacity-0 ${bgClass}`;
+            toast.innerHTML = `${icon}<span class="text-sm font-medium">${escapeHtml(message)}</span>`;
+            
+            DOM.toastContainer.appendChild(toast);
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            });
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>

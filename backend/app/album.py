@@ -1,11 +1,11 @@
-"""El álbum: guarda las fotos en disco y las indexa en un JSON. Dado.
+"""El álbum: guarda las fotos en disco y las indexa en un JSON.
 
 Esta clase es de la capa de aplicación (no del core): no procesa imágenes,
 solo administra archivos y metadatos. Todo el procesamiento real pasa por
 `album.*` (el core).
 
 Dos fotos son "casi iguales" si sus hashes perceptuales difieren en a lo
-sumo DUPLICATE_BITS de los 64 bits (ejercicio 55).
+sumo DUPLICATE_BITS de los 64 bits.
 """
 
 from __future__ import annotations
