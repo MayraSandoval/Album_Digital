@@ -10,14 +10,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.config import FRONTEND_DIR, MEDIA_URL, PHOTOS_DIR, RESTORED_DIR, SCANNED_DIR, STORAGE_DIR
+from app.config import FRONTEND_DIR, MEDIA_URL, PHOTOS_DIR, RESTORED_DIR, RETRO_DIR, SCANNED_DIR, STORAGE_DIR
 from app.errors import register_exception_handlers
-from app.routers import gallery, photos, restore, scan, search
+from app.routers import gallery, photos, restore, retro, scan, search
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR):
+    for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR, RETRO_DIR):
         folder.mkdir(parents=True, exist_ok=True)
     yield
 
@@ -46,12 +46,13 @@ def health():
 
 app.include_router(photos.router)
 app.include_router(restore.router)
+app.include_router(retro.router)
 app.include_router(scan.router)
 app.include_router(search.router)
 app.include_router(gallery.router)
 
 # Archivos de fotos en disco.
-for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR):
+for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR, RETRO_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 app.mount(MEDIA_URL, StaticFiles(directory=STORAGE_DIR), name="media")
 

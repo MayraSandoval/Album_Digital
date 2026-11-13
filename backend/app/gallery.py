@@ -4,6 +4,7 @@ Es capa de aplicación (no procesa imágenes): administra archivos y metadatos.
 
     storage/scanned/    → todo lo que pasó por "1. Digitalizar"
     storage/restored/   → todo lo que pasó por "3. Restauración"
+    storage/retro/      → todo lo que pasó por "4. Estilo retro"
     storage/gallery.json → índice con tipo, tamaño y fecha de cada foto
 """
 
@@ -16,12 +17,17 @@ from pathlib import Path
 
 SCANNED = "scanned"
 RESTORED = "restored"
+RETRO = "retro"
 
 
 class Gallery:
     def __init__(self, storage_dir: Path) -> None:
         self.storage_dir = Path(storage_dir)
-        self.folders = {SCANNED: self.storage_dir / SCANNED, RESTORED: self.storage_dir / RESTORED}
+        self.folders = {
+            SCANNED: self.storage_dir / SCANNED,
+            RESTORED: self.storage_dir / RESTORED,
+            RETRO: self.storage_dir / RETRO,
+        }
         self.index_path = self.storage_dir / "gallery.json"
 
     # ------------------------------------------------------------------ índice
@@ -76,6 +82,34 @@ class Gallery:
         self._save(entries)
         return entry
 
+    def add_retro(
+        self,
+        source_id: str,
+        png: bytes,
+        width: int,
+        height: int,
+        palette: str,
+        dithering: bool,
+    ) -> dict:
+        """Un estilo retro por foto original: si se repite, se reemplaza."""
+        entry = {
+            "id": source_id,
+            "kind": RETRO,
+            "folder": RETRO,
+            "filename": f"{source_id}.png",
+            "width": int(width),
+            "height": int(height),
+            "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "source_id": source_id,
+            "palette": palette,
+            "dithering": bool(dithering),
+        }
+        self._write(RETRO, entry["filename"], png)
+        entries = [e for e in self._load() if not (e.get("kind") == RETRO and e.get("source_id") == source_id)]
+        entries.append(entry)
+        self._save(entries)
+        return entry
+
     def remove_scanned(self, item_id: str) -> bool:
         entries = self._load()
         kept = []
@@ -97,6 +131,20 @@ class Gallery:
         for entry in entries:
             if entry.get("kind") == RESTORED and entry.get("source_id") == source_id:
                 (self.folders[RESTORED] / entry["filename"]).unlink(missing_ok=True)
+                removed = True
+            else:
+                kept.append(entry)
+        if removed:
+            self._save(kept)
+        return removed
+
+    def remove_retro(self, source_id: str) -> bool:
+        entries = self._load()
+        kept = []
+        removed = False
+        for entry in entries:
+            if entry.get("kind") == RETRO and entry.get("source_id") == source_id:
+                (self.folders[RETRO] / entry["filename"]).unlink(missing_ok=True)
                 removed = True
             else:
                 kept.append(entry)

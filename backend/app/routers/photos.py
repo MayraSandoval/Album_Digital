@@ -83,6 +83,7 @@ def delete_photo(photo_id: str):
     if not album.delete(photo_id):
         raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
     gallery.remove_restored(photo_id)
+    gallery.remove_retro(photo_id)
 
 
 _ = PHOTOS_DIR  # se usa vía Album; import explícito para que aparezca en el namespace

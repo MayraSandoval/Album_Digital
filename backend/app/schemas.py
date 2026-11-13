@@ -58,11 +58,31 @@ class SimilarMatchOut(BaseModel):
     distance: float
 
 
+class PaletteOut(BaseModel):
+    name: str
+    label: str
+    colors: list[str] = Field(description="Colores de la paleta en formato #RRGGBB")
+    monochrome: bool
+
+
+class RetroOut(BaseModel):
+    photo_id: str
+    palette: str
+    palette_label: str
+    dithering: bool
+    width: int
+    height: int
+    original_url: str
+    url: str
+
+
 class GalleryItemOut(BaseModel):
     id: str
-    kind: Literal["scanned", "restored"]
+    kind: Literal["scanned", "restored", "retro"]
     width: int
     height: int
     created: str
-    source_id: str | None = Field(default=None, description="Foto del álbum de la que salió la restauración")
+    source_id: str | None = Field(
+        default=None, description="Foto del álbum de la que salió la restauración o el estilo retro"
+    )
     url: str

@@ -115,7 +115,7 @@
                             <div id="processed-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-neutral-600"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
                                 <p class="text-sm text-neutral-400">Todavía no hay una versión procesada</p>
-                                <p class="text-xs text-neutral-600">Usá Digitalizar o Restaurar para generar el resultado.</p>
+                                <p class="text-xs text-neutral-600">Usá Digitalizar, Restauración o Estilo retro para generar el resultado.</p>
                             </div>
                             <!-- Overlay loading -->
                             <div id="canvas-overlay" class="hidden absolute inset-0 bg-neutral-900/70 z-20 backdrop-blur-sm flex items-center justify-center">
@@ -261,6 +261,43 @@
                     </div>
                 </div>
 
+                <hr class="border-neutral-800">
+
+                <!-- Tool: Estilo retro -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-retro">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fuchsia-400"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                        <h3 class="text-sm font-semibold">Estilo retro</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Cuantiza la foto con una paleta fija y dithering Floyd–Steinberg.</p>
+
+                    <label for="retro-palette" class="block text-[11px] font-medium uppercase tracking-wide text-neutral-500 mb-1.5">Paleta</label>
+                    <select id="retro-palette" onchange="updateRetroSwatches()" class="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-2 text-xs text-neutral-200 focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500/40">
+                        <option value="gameboy">Game Boy</option>
+                    </select>
+                    <div id="retro-swatches" class="flex flex-wrap gap-1 mt-2"></div>
+                    <p id="retro-hint" class="text-[11px] text-neutral-600 mt-1.5 mb-3"></p>
+
+                    <label class="flex items-center gap-3 cursor-pointer group mb-3">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" id="opt-dither" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
+                            <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
+                                <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
+                            </div>
+                        </div>
+                        <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Dithering Floyd–Steinberg</span>
+                    </label>
+
+                    <button id="btn-retro" onclick="processRetro()" class="w-full relative flex items-center justify-center py-2.5 px-4 bg-fuchsia-600 hover:bg-fuchsia-500 border border-fuchsia-500 rounded-lg text-sm font-medium text-white transition-all shadow-[0_0_15px_rgba(217,70,239,0.25)] hover:shadow-[0_0_20px_rgba(217,70,239,0.45)]">
+                        <span class="btn-content flex items-center gap-2">
+                            Aplicar estilo retro
+                        </span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-fuchsia-600 rounded-lg">
+                            <div class="w-4 h-4 border-2 border-fuchsia-200 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+                </div>
+
             </div>
         </aside>
     </main>
@@ -297,6 +334,16 @@
             overlayText: document.getElementById('canvas-overlay-text'),
             toastContainer: document.getElementById('toast-container')
         };
+
+        // Paletas de respaldo: la lista real la entrega /api/retro/palettes.
+        const RETRO_FALLBACK = [
+            { name: 'gameboy', label: 'Game Boy', colors: ['#0F380F', '#306230', '#8BAC0F', '#9BBC0F'], monochrome: true },
+            { name: 'bw', label: 'Blanco y negro', colors: ['#000000', '#FFFFFF'], monochrome: true },
+            { name: 'virtualboy', label: 'Virtual Boy', colors: ['#000000', '#550000', '#AA0000', '#FF0000'], monochrome: true },
+            { name: 'cga', label: 'CGA', colors: ['#000000', '#55FFFF', '#FF55FF', '#FFFFFF'], monochrome: false },
+            { name: 'pico8', label: 'PICO-8', colors: ['#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8', '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'], monochrome: false }
+        ];
+        let retroPalettes = RETRO_FALLBACK;
 
         // --- API helpers ---
         async function api(path, options = {}) {
@@ -350,6 +397,37 @@
             }
         }
 
+        async function loadRetroPalettes() {
+            try {
+                retroPalettes = await apiJson('/api/retro/palettes');
+            } catch (_) {
+                retroPalettes = RETRO_FALLBACK;
+            }
+            const select = document.getElementById('retro-palette');
+            const current = select.value;
+            select.innerHTML = retroPalettes
+                .map(palette => `<option value="${escapeHtml(palette.name)}">${escapeHtml(palette.label)}</option>`)
+                .join('');
+            if (retroPalettes.some(palette => palette.name === current)) select.value = current;
+            updateRetroSwatches();
+        }
+
+        function updateRetroSwatches() {
+            const select = document.getElementById('retro-palette');
+            const swatches = document.getElementById('retro-swatches');
+            const hint = document.getElementById('retro-hint');
+            const palette = retroPalettes.find(item => item.name === select.value);
+            if (!palette) {
+                swatches.innerHTML = '';
+                hint.textContent = '';
+                return;
+            }
+            swatches.innerHTML = palette.colors
+                .map(color => `<span class="w-5 h-5 rounded border border-white/10" style="background:${escapeHtml(color)}" title="${escapeHtml(color)}"></span>`)
+                .join('');
+            hint.textContent = `${palette.colors.length} colores${palette.monochrome ? ' · rampa monocromática' : ''}`;
+        }
+
         // --- Init & Event Listeners ---
         function init() {
             // Drag and drop events
@@ -363,6 +441,7 @@
             DOM.dropzone.addEventListener('drop', handleDrop, false);
 
             checkApi();
+            loadRetroPalettes();
         }
 
         function preventDefaults(e) {
@@ -521,7 +600,7 @@
                 setProcessed(URL.createObjectURL(scanned), 'digitalizada.png', { fromObjectUrl: true });
                 document.getElementById('quality-results').classList.add('hidden');
                 document.getElementById('restore-progress').classList.add('hidden');
-                showToast('Hoja detectada y guardada en la galería. Ya podés diagnosticarla o restaurarla.', 'success');
+                showToast('Hoja detectada y guardada en la galería. Ya podés diagnosticarla, restaurarla o darle un estilo retro.', 'success');
             } catch (err) {
                 showToast(err.message, 'error');
             } finally {
@@ -613,6 +692,38 @@
                 showToast(err.message, 'error');
             } finally {
                 stopProcessing('btn-restore');
+            }
+        }
+
+        async function processRetro() {
+            if (state.busy || !state.file) return;
+
+            const palette = document.getElementById('retro-palette').value;
+            if (!palette) {
+                showToast('Elegí una paleta para el estilo retro.', 'info');
+                return;
+            }
+            const dithering = document.getElementById('opt-dither').checked;
+
+            setProcessing('btn-retro', 'Cuantizando colores...');
+
+            try {
+                const id = await ensureUploaded();
+                const form = new FormData();
+                form.append('palette', palette);
+                form.append('dithering', String(dithering));
+                const out = await apiJson(`/api/photos/${id}/retro`, { method: 'POST', body: form });
+
+                setProcessed(
+                    `${out.url}?t=${Date.now()}`,
+                    `${baseName(state.originalName)}_retro.png`
+                );
+                state.photoUrl = out.url;
+                showToast(`Estilo ${out.palette_label} aplicado y guardado en la galería.`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-retro');
             }
         }
 

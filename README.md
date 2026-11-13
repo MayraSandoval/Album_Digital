@@ -31,6 +31,7 @@ Las fotos se guardan en `backend/storage/` (no se sube al repositorio):
 | `storage/photos/` | Los originales subidos, con los que trabajan diagnóstico y restauración |
 | `storage/scanned/` | Todo lo que pasó por **Digitalizar** |
 | `storage/restored/` | Todo lo que pasó por **Restauración** |
+| `storage/retro/` | Todo lo que pasó por **4. Estilo retro** |
 
 La galería junta ambas carpetas y las muestra separadas por tipo. La página de
 búsqueda recorre los originales de `storage/photos/` con histogramas HSV y el
@@ -45,6 +46,26 @@ python -m album scan mesa.jpg digitalizada.png                     # endereza un
 python -m album metrics original.png restaurada.png                # MSE y PSNR
 python -m album diagnose foto.jpg                                  # nitidez, ruido y brillo
 ```
+
+## Estilo retro
+
+La herramienta **4. Estilo retro** del estudio aplica:
+paletas fijas, mapeo de tonos para las paletas monocromáticas y cuantización al
+color más cercano. Con el dithering activado, el error de cada píxel se reparte
+con Floyd–Steinberg (7/16 a la derecha, 3/16 abajo-izquierda, 5/16 abajo y 1/16
+abajo-derecha).
+
+| Paleta | Colores | Tipo |
+|---|---|---|
+| Game Boy | 4 | monocromática |
+| Blanco y negro | 2 | monocromática |
+| Virtual Boy | 4 | monocromática |
+| CGA | 4 | color |
+| PICO-8 | 16 | color |
+
+Los resultados quedan en `storage/retro/` y se pueden borrar desde la galería
+sin tocar la foto original. La lista de paletas está en `GET /api/retro/palettes`
+y el procesamiento en `POST /api/photos/{id}/retro`.
 
 ## Tests
 
@@ -77,6 +98,7 @@ album-digital/
     │   ├── quality.py          #   
     │   ├── restoration.py      #   
     │   └── descriptors.py      #   
+    │   └── retro.py            # estilo retro: paletas, cuantización y dithering    
     └── tests/                  # los tests de cada TODO + contrato de la API
 ```
 

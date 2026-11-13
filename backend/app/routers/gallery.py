@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Response
 
 from app.album import Album
 from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
-from app.gallery import RESTORED, SCANNED, Gallery
+from app.gallery import RESTORED, RETRO, SCANNED, Gallery
 from app.schemas import ErrorOut, GalleryItemOut
 
 router = APIRouter(prefix="/api/gallery", tags=["galería"])
@@ -56,7 +56,7 @@ def _legacy_restored() -> list[dict]:
 @router.get(
     "",
     response_model=list[GalleryItemOut],
-    summary="Galería: fotos digitalizadas y restauradas",
+    summary="Galería: fotos digitalizadas, restauradas y con estilo retro",
 )
 def list_gallery():
     items = [_item_out(entry) for entry in gallery.all() + _legacy_restored()]
@@ -69,11 +69,18 @@ def list_gallery():
     summary="Eliminar una foto de la galería (no borra la foto original)",
     responses={404: {"model": ErrorOut}},
 )
-def delete_gallery_item(kind: Literal["scanned", "restored"], item_id: str):
+def delete_gallery_item(kind: Literal["scanned", "restored", "retro"], item_id: str):
     if kind == SCANNED:
         if not gallery.remove_scanned(item_id):
             raise HTTPException(
                 status_code=404, detail=f"No hay ninguna foto digitalizada con id {item_id} en la galería."
+            )
+        return Response(status_code=204)
+
+    if kind == RETRO:
+        if not gallery.remove_retro(item_id):
+            raise HTTPException(
+                status_code=404, detail=f"No hay ninguna foto con estilo retro e id {item_id} en la galería."
             )
         return Response(status_code=204)
 
