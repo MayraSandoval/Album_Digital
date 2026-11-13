@@ -43,6 +43,18 @@ def _make_legacy_restored(photo_id: str) -> None:
     (STORAGE_DIR / "album.json").write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
 
 
+def _retro_items(client, photo_id: str) -> list[dict]:
+    return [
+        item
+        for item in client.get("/api/gallery").json()
+        if item["kind"] == "retro" and item["source_id"] == photo_id
+    ]
+
+
+def _retro_path(url: str):
+    return STORAGE_DIR / "retro" / url.rsplit("/", 1)[-1]
+
+
 def test_health(client):
     response = client.get("/api/health")
     assert response.status_code == 200
@@ -296,26 +308,23 @@ def test_estilo_retro_guarda_en_su_carpeta(client):
     assert out["palette"] == "gameboy"
     assert out["palette_label"] == "Game Boy"
     assert out["dithering"] is True
-    assert out["url"] == f"/media/retro/{body['id']}.png"
-    assert (STORAGE_DIR / "retro" / f"{body['id']}.png").exists()
+    assert out["url"].startswith("/media/retro/")
+    assert _retro_path(out["url"]).exists()
     assert (STORAGE_DIR / "photos" / f"{body['id']}.png").exists()
 
     media = client.get(out["url"])
     assert media.status_code == 200 and media.headers["content-type"] == "image/png"
 
-    saved = [
-        item
-        for item in client.get("/api/gallery").json()
-        if item["kind"] == "retro" and item["source_id"] == body["id"]
-    ]
+    saved = _retro_items(client, body["id"])
     assert len(saved) == 1
     assert saved[0]["url"] == out["url"]
 
 
-def test_estilo_retro_reemplaza_la_variante_anterior(client):
+def test_estilo_retro_acumula_variantes(client):
     body = _upload(client, synth.photo(seed=92))
     first = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "gameboy"}).json()
-    first_bytes = (STORAGE_DIR / "retro" / f"{body['id']}.png").read_bytes()
+    first_path = _retro_path(first["url"])
+    first_bytes = first_path.read_bytes()
 
     second = client.post(
         f"/api/photos/{body['id']}/retro",
@@ -323,17 +332,16 @@ def test_estilo_retro_reemplaza_la_variante_anterior(client):
     )
     assert second.status_code == 200, second.text
     second = second.json()
-    assert second["url"] == first["url"]
     assert second["palette"] == "pico8"
     assert second["dithering"] is False
-    assert (STORAGE_DIR / "retro" / f"{body['id']}.png").read_bytes() != first_bytes
+    assert second["url"] != first["url"]
+    second_path = _retro_path(second["url"])
+    assert first_path.exists() and second_path.exists()
+    assert second_path.read_bytes() != first_bytes
 
-    saved = [
-        item
-        for item in client.get("/api/gallery").json()
-        if item["kind"] == "retro" and item["source_id"] == body["id"]
-    ]
-    assert len(saved) == 1
+    saved = _retro_items(client, body["id"])
+    assert len(saved) == 2
+    assert {item["url"] for item in saved} == {first["url"], second["url"]}
 
 
 def test_estilo_retro_paleta_invalida(client):
@@ -341,35 +349,37 @@ def test_estilo_retro_paleta_invalida(client):
     response = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "sega"})
     assert response.status_code == 422, response.text
     assert "Paleta desconocida" in response.json()["detail"]
-    assert not (STORAGE_DIR / "retro" / f"{body['id']}.png").exists()
+    assert _retro_items(client, body["id"]) == []
 
 
 def test_eliminar_retro_no_borra_la_foto_original(client):
     body = _upload(client, synth.photo(seed=94))
-    out = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "cga"}).json()
-    path = STORAGE_DIR / "retro" / f"{body['id']}.png"
-    assert path.exists()
+    first = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "cga"}).json()
+    second = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "bw"}).json()
+    first_path = _retro_path(first["url"])
+    second_path = _retro_path(second["url"])
+    first_item = next(item for item in _retro_items(client, body["id"]) if item["url"] == first["url"])
 
-    assert client.delete(f"/api/gallery/retro/{body['id']}").status_code == 204
-    assert not path.exists()
-    assert client.get(out["url"]).status_code == 404
+    assert client.delete(f"/api/gallery/retro/{first_item['id']}").status_code == 204
+    assert not first_path.exists()
+    assert second_path.exists()
+    assert client.get(first["url"]).status_code == 404
+    assert client.get(second["url"]).status_code == 200
     assert client.get(f"/api/photos/{body['id']}").status_code == 200
-    assert not [
-        item
-        for item in client.get("/api/gallery").json()
-        if item["kind"] == "retro" and item["source_id"] == body["id"]
-    ]
-    assert client.delete(f"/api/gallery/retro/{body['id']}").status_code == 404
+
+    remaining = _retro_items(client, body["id"])
+    assert len(remaining) == 1 and remaining[0]["url"] == second["url"]
+    assert client.delete(f"/api/gallery/retro/{first_item['id']}").status_code == 404
 
 
-def test_borrar_foto_borra_su_retro(client):
+def test_borrar_foto_borra_sus_retros(client):
     body = _upload(client, synth.photo(seed=95))
-    assert client.post(f"/api/photos/{body['id']}/retro", data={"palette": "bw"}).status_code == 200
+    first = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "bw"}).json()
+    second = client.post(f"/api/photos/{body['id']}/retro", data={"palette": "pico8"}).json()
+    paths = [_retro_path(first["url"]), _retro_path(second["url"])]
+    assert all(path.exists() for path in paths)
+
     assert client.delete(f"/api/photos/{body['id']}").status_code == 204
 
-    assert not (STORAGE_DIR / "retro" / f"{body['id']}.png").exists()
-    assert not [
-        item
-        for item in client.get("/api/gallery").json()
-        if item["kind"] == "retro" and item["source_id"] == body["id"]
-    ]
+    assert not any(path.exists() for path in paths)
+    assert _retro_items(client, body["id"]) == []

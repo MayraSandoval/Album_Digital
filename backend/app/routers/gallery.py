@@ -78,7 +78,7 @@ def delete_gallery_item(kind: Literal["scanned", "restored", "retro"], item_id: 
         return Response(status_code=204)
 
     if kind == RETRO:
-        if not gallery.remove_retro(item_id):
+        if not gallery.remove_retro_item(item_id):
             raise HTTPException(
                 status_code=404, detail=f"No hay ninguna foto con estilo retro e id {item_id} en la galería."
             )

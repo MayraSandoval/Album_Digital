@@ -91,12 +91,13 @@ class Gallery:
         palette: str,
         dithering: bool,
     ) -> dict:
-        """Un estilo retro por foto original: si se repite, se reemplaza."""
+        """Cada aplicación crea una variante nueva; se acumulan por foto original."""
+        item_id = uuid.uuid4().hex[:12]
         entry = {
-            "id": source_id,
+            "id": item_id,
             "kind": RETRO,
             "folder": RETRO,
-            "filename": f"{source_id}.png",
+            "filename": f"{item_id}.png",
             "width": int(width),
             "height": int(height),
             "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -105,7 +106,7 @@ class Gallery:
             "dithering": bool(dithering),
         }
         self._write(RETRO, entry["filename"], png)
-        entries = [e for e in self._load() if not (e.get("kind") == RETRO and e.get("source_id") == source_id)]
+        entries = self._load()
         entries.append(entry)
         self._save(entries)
         return entry
@@ -139,11 +140,27 @@ class Gallery:
         return removed
 
     def remove_retro(self, source_id: str) -> bool:
+        """Borra todas las variantes retro de una foto original."""
         entries = self._load()
         kept = []
         removed = False
         for entry in entries:
             if entry.get("kind") == RETRO and entry.get("source_id") == source_id:
+                (self.folders[RETRO] / entry["filename"]).unlink(missing_ok=True)
+                removed = True
+            else:
+                kept.append(entry)
+        if removed:
+            self._save(kept)
+        return removed
+
+    def remove_retro_item(self, item_id: str) -> bool:
+        """Borra una sola variante retro de la galería."""
+        entries = self._load()
+        kept = []
+        removed = False
+        for entry in entries:
+            if entry.get("kind") == RETRO and entry.get("id") == item_id:
                 (self.folders[RETRO] / entry["filename"]).unlink(missing_ok=True)
                 removed = True
             else:
