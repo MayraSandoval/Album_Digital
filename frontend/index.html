@@ -206,53 +206,122 @@
 
                 <hr class="border-neutral-800">
 
-                <!-- Tool: Restauración -->
+                <!-- Tool: Restauración manual -->
                 <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-restore">
                     <div class="flex items-center gap-2 mb-3 text-neutral-300">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>
                         <h3 class="text-sm font-semibold">Restauración</h3>
                     </div>
-                    
-                    <div class="space-y-2 mb-4 bg-neutral-900 p-3 rounded-lg border border-neutral-800">
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <div class="relative flex items-center">
-                                <input type="checkbox" id="opt-denoise" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
-                                <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
-                                    <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
-                                </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Aplicá una herramienta por vez. Cada paso trabaja sobre el resultado anterior; la foto original nunca se modifica.</p>
+
+                    <!-- 1. Quitar ruido -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">1. Quitar ruido</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">Filtro</span>
+                        </div>
+                        <label for="dn-method" class="sr-only">Método de reducción de ruido</label>
+                        <select id="dn-method" onchange="updateDenoiseControls()" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="median">Mediana · sal y pimienta</option>
+                            <option value="bilateral">Bilateral · ruido fino</option>
+                        </select>
+                        <div id="dn-median-controls">
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Ventana (impar)</span><span id="dn-kernel-val" class="font-mono">5</span></div>
+                            <input id="dn-kernel" type="range" min="3" max="9" step="2" value="5" oninput="document.getElementById('dn-kernel-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div id="dn-bilateral-controls" class="hidden space-y-2">
+                            <div>
+                                <div class="flex justify-between text-[11px] text-neutral-400"><span>Diámetro</span><span id="dn-diameter-val" class="font-mono">5</span></div>
+                                <input id="dn-diameter" type="range" min="3" max="9" step="2" value="5" oninput="document.getElementById('dn-diameter-val').textContent=this.value" class="w-full accent-indigo-500">
                             </div>
-                            <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Reducción de ruido (Auto)</span>
-                        </label>
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <div class="relative flex items-center">
-                                <input type="checkbox" id="opt-scratches" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
-                                <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
-                                    <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
-                                </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] text-neutral-400"><span>Sigma</span><span id="dn-sigma-val" class="font-mono">75</span></div>
+                                <input id="dn-sigma" type="range" min="10" max="150" step="5" value="75" oninput="document.getElementById('dn-sigma-val').textContent=this.value" class="w-full accent-indigo-500">
                             </div>
-                            <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Reparar rasguños</span>
-                        </label>
-                        <label class="flex items-center gap-3 cursor-pointer group">
-                            <div class="relative flex items-center">
-                                <input type="checkbox" id="opt-contrast" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
-                                <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
-                                    <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
-                                </div>
+                        </div>
+                        <button id="btn-denoise" onclick="processRestoreStep('denoise')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar reducción de ruido</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
                             </div>
-                            <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Realce de contraste</span>
-                        </label>
+                        </button>
                     </div>
 
-                    <button id="btn-restore" onclick="processRestore()" class="w-full relative flex items-center justify-center py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-sm font-medium text-white transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)]">
-                        <span class="btn-content flex items-center gap-2">
-                            Restaurar Foto
-                        </span>
-                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-indigo-600 rounded-lg">
-                            <div class="w-4 h-4 border-2 border-indigo-200 border-t-white rounded-full animate-spin"></div>
+                    <!-- 2. Reparar rasguños -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">2. Reparar rasguños</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">Top-hat + inpaint</span>
                         </div>
-                    </button>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Largo del rasguño</span><span id="sc-length-val" class="font-mono">25</span></div>
+                            <input id="sc-length" type="range" min="9" max="51" step="2" value="25" oninput="document.getElementById('sc-length-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Contraste mínimo</span><span id="sc-min-contrast-val" class="font-mono">40</span></div>
+                            <input id="sc-min-contrast" type="range" min="10" max="100" step="5" value="40" oninput="document.getElementById('sc-min-contrast-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Radio de relleno</span><span id="sc-radius-val" class="font-mono">3</span></div>
+                            <input id="sc-radius" type="range" min="1" max="10" value="3" oninput="document.getElementById('sc-radius-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <label for="sc-method" class="sr-only">Método de inpainting</label>
+                        <select id="sc-method" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="telea">Relleno TELEA</option>
+                            <option value="ns">Relleno Navier-Stokes</option>
+                        </select>
+                        <button id="btn-scratches" onclick="processRestoreStep('scratches')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar reparación</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
 
-                    <!-- Restoration Progress -->
+                    <!-- 3. Realzar contraste -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">3. Realzar contraste</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">CLAHE</span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Intensidad (clip)</span><span id="ct-clip-val" class="font-mono">2.5</span></div>
+                            <input id="ct-clip" type="range" min="1" max="8" step="0.5" value="2.5" oninput="document.getElementById('ct-clip-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <label for="ct-tile" class="sr-only">Grilla de tiles</label>
+                        <select id="ct-tile" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="4">Grilla 4×4</option>
+                            <option value="8" selected>Grilla 8×8</option>
+                            <option value="16">Grilla 16×16</option>
+                        </select>
+                        <button id="btn-contrast" onclick="processRestoreStep('contrast')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar contraste</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Historial de pasos manuales -->
+                    <div id="restore-history" class="hidden mt-3 bg-neutral-900 border border-neutral-800 rounded-lg p-3">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 mb-2">Pasos aplicados</div>
+                        <ol id="restore-history-list" class="space-y-1.5 text-xs text-neutral-300"></ol>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <button id="btn-restore" onclick="processRestore()" class="relative flex items-center justify-center py-2 px-3 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 rounded-lg text-xs font-medium text-white transition-all">
+                            <span class="btn-content">Aplicar las 3</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-indigo-600 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-indigo-200 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                        <button id="btn-restore-reset" onclick="resetRestoration()" class="flex items-center justify-center gap-1.5 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg text-xs font-medium text-neutral-300 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            Volver al original
+                        </button>
+                    </div>
+
+                    <!-- Restoration Progress (automático) -->
                     <div id="restore-progress" class="hidden mt-4">
                         <div class="text-xs font-medium text-neutral-400 mb-2">Proceso:</div>
                         <ul class="space-y-2 text-xs" id="progress-list">
@@ -317,7 +386,8 @@
             photoId: null,           // id en el álbum; null = todavía no se subió
             photoUrl: null,          // URL del servidor de la foto actual
             busy: false,
-            restored: false
+            restored: false,
+            restoreHistory: []       // pasos manuales aplicados en esta sesión
         };
 
         const DOM = {
@@ -442,6 +512,7 @@
 
             checkApi();
             loadRetroPalettes();
+            updateDenoiseControls();
         }
 
         function preventDefaults(e) {
@@ -527,6 +598,7 @@
             state.photoId = null;
             state.photoUrl = null;
             state.restored = false;
+            state.restoreHistory = [];
             DOM.originalImage.src = state.originalUrl;
 
             // Switch UI
@@ -538,6 +610,7 @@
 
             document.getElementById('quality-results').classList.add('hidden');
             document.getElementById('restore-progress').classList.add('hidden');
+            renderRestoreHistory();
 
             enableTools();
             showToast(`Foto cargada: ${file.name}`, 'info');
@@ -556,7 +629,8 @@
                 photoId: null,
                 photoUrl: null,
                 busy: false,
-                restored: false
+                restored: false,
+                restoreHistory: []
             };
             DOM.originalImage.removeAttribute('src');
             DOM.canvasArea.classList.add('hidden');
@@ -573,6 +647,7 @@
             document.getElementById('quality-results').classList.add('hidden');
             document.getElementById('restore-progress').classList.add('hidden');
             document.getElementById('progress-list').innerHTML = '';
+            renderRestoreHistory();
         }
 
         function enableTools() {
@@ -597,7 +672,9 @@
                 state.photoId = null;  // se sube recién cuando hace falta
                 state.photoUrl = null;
                 state.restored = false;
+                state.restoreHistory = [];
                 setProcessed(URL.createObjectURL(scanned), 'digitalizada.png', { fromObjectUrl: true });
+                renderRestoreHistory();
                 document.getElementById('quality-results').classList.add('hidden');
                 document.getElementById('restore-progress').classList.add('hidden');
                 showToast('Hoja detectada y guardada en la galería. Ya podés diagnosticarla, restaurarla o darle un estilo retro.', 'success');
@@ -643,18 +720,117 @@
                 : '<svg class="w-4 h-4 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
         }
 
-        async function processRestore() {
-            if (state.busy || !state.file) return;
+        function updateDenoiseControls() {
+            const method = document.getElementById('dn-method').value;
+            document.getElementById('dn-median-controls').classList.toggle('hidden', method !== 'median');
+            document.getElementById('dn-bilateral-controls').classList.toggle('hidden', method !== 'bilateral');
+        }
 
-            const doDenoise = document.getElementById('opt-denoise').checked;
-            const doScratches = document.getElementById('opt-scratches').checked;
-            const doContrast = document.getElementById('opt-contrast').checked;
+        function restoreStepParams(operation) {
+            if (operation === 'denoise') {
+                const method = document.getElementById('dn-method').value;
+                if (method === 'median') {
+                    return { method, kernel_size: Number(document.getElementById('dn-kernel').value) };
+                }
+                return {
+                    method,
+                    diameter: Number(document.getElementById('dn-diameter').value),
+                    sigma: Number(document.getElementById('dn-sigma').value),
+                };
+            }
+            if (operation === 'scratches') {
+                return {
+                    length: Number(document.getElementById('sc-length').value),
+                    min_contrast: Number(document.getElementById('sc-min-contrast').value),
+                    radius: Number(document.getElementById('sc-radius').value),
+                    method: document.getElementById('sc-method').value,
+                };
+            }
+            return {
+                clip_limit: Number(document.getElementById('ct-clip').value),
+                tile_size: Number(document.getElementById('ct-tile').value),
+            };
+        }
 
-            if (!doDenoise && !doScratches && !doContrast) {
-                showToast('Seleccioná al menos una opción de restauración.', 'info');
+        function describeRestoreParams(operation, params) {
+            if (operation === 'denoise') {
+                return params.method === 'median'
+                    ? `mediana ${params.kernel_size}×${params.kernel_size}`
+                    : `bilateral ${params.diameter}px · σ ${params.sigma}`;
+            }
+            if (operation === 'scratches') {
+                return `largo ${params.length} · contraste ≥ ${params.min_contrast} · radio ${params.radius} · ${String(params.method).toUpperCase()}`;
+            }
+            return `clip ${params.clip_limit} · grilla ${params.tile_size}×${params.tile_size}`;
+        }
+
+        function renderRestoreHistory() {
+            const box = document.getElementById('restore-history');
+            const list = document.getElementById('restore-history-list');
+            if (!state.restoreHistory.length) {
+                box.classList.add('hidden');
+                list.innerHTML = '';
                 return;
             }
+            box.classList.remove('hidden');
+            list.innerHTML = state.restoreHistory.map((step, index) => `
+                <li class="flex items-start gap-2">
+                    <span class="mt-0.5 w-4 h-4 shrink-0 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold flex items-center justify-center">${index + 1}</span>
+                    <span><span class="text-neutral-200">${escapeHtml(step.label)}</span><span class="text-neutral-500"> · ${escapeHtml(step.detail)}</span></span>
+                </li>`).join('');
+        }
 
+        async function processRestoreStep(operation) {
+            if (state.busy || !state.file) return;
+
+            const params = restoreStepParams(operation);
+            setProcessing(`btn-${operation}`, 'Aplicando paso...');
+
+            try {
+                const id = await ensureUploaded();
+                const out = await apiJson(`/api/photos/${id}/restore/${operation}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                });
+
+                setProcessed(
+                    `${out.restored_url}?t=${Date.now()}`,
+                    `${baseName(state.originalName)}_restaurada.png`
+                );
+                state.photoUrl = out.restored_url;
+                state.restored = true;
+                state.restoreHistory.push({
+                    label: out.label,
+                    detail: describeRestoreParams(operation, out.parameters),
+                });
+                renderRestoreHistory();
+                showToast(`${out.label} aplicado. Podés sumar otro paso o descargar.`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing(`btn-${operation}`);
+            }
+        }
+
+        async function resetRestoration() {
+            if (state.busy) return;
+            if (state.photoId) {
+                // 404 = todavía no había restauración: no hay nada que descartar.
+                await fetch(`/api/gallery/restored/${state.photoId}`, { method: 'DELETE' });
+            }
+            state.restored = false;
+            state.photoUrl = null;
+            state.restoreHistory = [];
+            clearProcessed();
+            renderRestoreHistory();
+            document.getElementById('restore-progress').classList.add('hidden');
+            document.getElementById('progress-list').innerHTML = '';
+            showToast('Restauración descartada. La foto original sigue intacta.', 'info');
+        }
+
+        async function processRestore() {
+            if (state.busy || !state.file) return;
             setProcessing('btn-restore', 'Restaurando...');
 
             const progressContainer = document.getElementById('restore-progress');
@@ -669,12 +845,16 @@
             try {
                 const id = await ensureUploaded();
                 const form = new FormData();
-                form.append('denoise', doDenoise ? 'auto' : 'none');
-                form.append('scratches', String(doScratches));
-                form.append('contrast', String(doContrast));
+                form.append('denoise', 'auto');
+                form.append('scratches', 'true');
+                form.append('contrast', 'true');
                 const out = await apiJson(`/api/photos/${id}/restore`, { method: 'POST', body: form });
 
                 renderSteps(out.steps);
+                state.restoreHistory = out.steps
+                    .filter(step => step.status === 'done')
+                    .map(step => ({ label: step.label, detail: 'automático' }));
+                renderRestoreHistory();
                 if (out.restored_url) {
                     setProcessed(
                         `${out.restored_url}?t=${Date.now()}`,

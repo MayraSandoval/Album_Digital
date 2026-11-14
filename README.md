@@ -47,6 +47,24 @@ python -m album metrics original.png restaurada.png                # MSE y PSNR
 python -m album diagnose foto.jpg                                  # nitidez, ruido y brillo
 ```
 
+## Restauración manual
+
+La herramienta **3. Restauración** del estudio aplica las técnicas por
+separado, como en el TP-1, cada una con sus propios parámetros:
+
+| Paso | Qué hace | Parámetros |
+|---|---|---|
+| Quitar ruido | mediana (sal y pimienta) o bilateral (ruido fino) | ventana de la mediana; diámetro y sigma del bilateral |
+| Reparar rasguños | top-hat alargado + umbral Otsu + inpainting | largo del kernel, contraste mínimo, radio y TELEA/NS |
+| Realzar contraste | CLAHE sobre la luminancia | clip limit y grilla de tiles |
+
+Cada paso trabaja sobre el resultado del paso anterior y reemplaza la
+restauración de esa foto en `storage/restored/`; la foto original nunca se
+modifica. «Volver al original» descarta la restauración. La versión automática
+(los tres pasos de corrido) sigue disponible en `POST /api/photos/{id}/restore`,
+y los pasos manuales en `POST /api/photos/{id}/restore/denoise`,
+`.../scratches` y `.../contrast`.
+
 ## Estilo retro
 
 La herramienta **4. Estilo retro** del estudio aplica:
