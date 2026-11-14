@@ -1,14 +1,23 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Form, HTTPException
 
 from app.album import Album
-from app.config import MEDIA_URL, STORAGE_DIR
+from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
 from app.gallery import Gallery
-from app.schemas import ErrorOut, RestoreOut, StepOut
-from album import RestorationOptions, RestorationPipeline, encode_png
+from app.schemas import (
+    ContrastIn,
+    DenoiseIn,
+    ErrorOut,
+    ManualRestoreOut,
+    RestoreOut,
+    ScratchRepairIn,
+    StepOut,
+)
+from album import RestorationOptions, RestorationPipeline, decode, encode_png
+from album.restoration import ContrastStep, DenoiseStep, ScratchRepairStep
 
 router = APIRouter(prefix="/api/photos", tags=["restauración"])
 album = Album(STORAGE_DIR)
@@ -27,6 +36,54 @@ def _form_bool(value: str | None, default: bool) -> bool:
     return value.strip().lower() in TRUE_VALUES
 
 
+def _photo(photo_id: str) -> dict:
+    entry = album.get(photo_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
+    return entry
+
+
+def _current_image(entry: dict):
+    """El paso manual trabaja sobre el último resultado, no sobre el original."""
+    restored = STORAGE_DIR / "restored" / f"{entry['id']}.png"
+    if restored.exists():
+        return decode(restored.read_bytes())
+    legacy = PHOTOS_DIR / f"{entry['id']}_restored.png"
+    if legacy.exists():
+        return decode(legacy.read_bytes())
+    return album.read_image(entry)
+
+
+def _apply_step(
+    entry: dict,
+    step,
+    operation: Literal["denoise", "scratches", "contrast"],
+    parameters: dict,
+) -> ManualRestoreOut:
+    trace = pipeline.run(_current_image(entry), steps=[step])
+    result = trace.results[0]
+    if result.status != "done" or result.image is None:
+        raise HTTPException(
+            status_code=422,
+            detail=result.message or f"No se pudo aplicar el paso {step.label}.",
+        )
+
+    image = result.image
+    item = gallery.add_restored(entry["id"], encode_png(image), image.shape[1], image.shape[0])
+    relative = f"{item['folder']}/{item['filename']}"
+    album.mark_restored(entry, relative)
+    return ManualRestoreOut(
+        photo_id=entry["id"],
+        operation=operation,
+        label=step.label,
+        parameters=parameters,
+        width=int(image.shape[1]),
+        height=int(image.shape[0]),
+        original_url=f"{MEDIA_URL}/photos/{entry['filename']}",
+        restored_url=f"{MEDIA_URL}/{relative}",
+    )
+
+
 @router.post(
     "/{photo_id}/restore",
     response_model=RestoreOut,
@@ -39,9 +96,7 @@ async def restore_photo(
     scratches: Annotated[str | None, Form(description="reparar rasguños")] = None,
     contrast: Annotated[str | None, Form(description="realzar contraste")] = None,
 ):
-    entry = album.get(photo_id)
-    if entry is None:
-        raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
+    entry = _photo(photo_id)
     image = album.read_image(entry)
     options = RestorationOptions(
         denoise=denoise or "auto",  # type: ignore[arg-type]
@@ -69,3 +124,52 @@ async def restore_photo(
         original_url=f"{MEDIA_URL}/photos/{entry['filename']}",
         restored_url=restored_url,
     )
+
+
+@router.post(
+    "/{photo_id}/restore/denoise",
+    response_model=ManualRestoreOut,
+    summary="Paso manual: quitar ruido (mediana o bilateral)",
+    responses=ERRORS,
+)
+def restore_denoise(photo_id: str, params: DenoiseIn):
+    entry = _photo(photo_id)
+    step = DenoiseStep(
+        method=params.method,
+        kernel_size=params.kernel_size,
+        diameter=params.diameter,
+        sigma=params.sigma,
+    )
+    return _apply_step(entry, step, "denoise", params.model_dump())
+
+
+@router.post(
+    "/{photo_id}/restore/scratches",
+    response_model=ManualRestoreOut,
+    summary="Paso manual: reparar rasguños (top-hat + inpainting)",
+    responses=ERRORS,
+)
+def restore_scratches(photo_id: str, params: ScratchRepairIn):
+    entry = _photo(photo_id)
+    step = ScratchRepairStep(
+        length=params.length,
+        min_contrast=params.min_contrast,
+        radius=params.radius,
+        method=params.method,
+    )
+    return _apply_step(entry, step, "scratches", params.model_dump())
+
+
+@router.post(
+    "/{photo_id}/restore/contrast",
+    response_model=ManualRestoreOut,
+    summary="Paso manual: realzar contraste (CLAHE)",
+    responses=ERRORS,
+)
+def restore_contrast(photo_id: str, params: ContrastIn):
+    entry = _photo(photo_id)
+    step = ContrastStep(
+        clip_limit=params.clip_limit,
+        tile_grid=(params.tile_size, params.tile_size),
+    )
+    return _apply_step(entry, step, "contrast", params.model_dump())

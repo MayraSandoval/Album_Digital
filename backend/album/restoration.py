@@ -38,18 +38,31 @@ class DenoiseStep(Step):
         mediana (cv2.medianBlur, kernel impar chico, 3 o 5);
       - ruido fino gaussiano → filtro bilateral (preserva bordes mejor que
         el gaussiano: comparalo en el informe, es un experimento directo).
-    Con "median" o "bilateral" no diagnostica: aplica ese filtro y listo.
+    Con "median" o "bilateral" no diagnostica: aplica ese filtro con los
+    parámetros elegidos (ventana de la mediana; diámetro y sigma del bilateral).
     """
 
     number = 1
     name = "denoise"
     label = "Quitar ruido"
 
-    def __init__(self, method: DenoiseMethod = "auto") -> None:
+    def __init__(
+        self,
+        method: DenoiseMethod = "auto",
+        kernel_size: int = MEDIAN_KERNEL,
+        diameter: int = BILATERAL_DIAMETER,
+        sigma: float = BILATERAL_SIGMA,
+    ) -> None:
         self.method = method
+        self.kernel_size = kernel_size
+        self.diameter = diameter
+        self.sigma = sigma
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(method={self.method!r})"
+        return (
+            f"{type(self).__name__}(method={self.method!r}, kernel_size={self.kernel_size!r}, "
+            f"diameter={self.diameter!r}, sigma={self.sigma!r})"
+        )
 
     def apply(self, image: np.ndarray) -> np.ndarray:
         method = self.method
@@ -59,11 +72,9 @@ class DenoiseStep(Step):
             method = "median" if _extreme_fraction(image) > SALT_PEPPER_FRACTION else "bilateral"
 
         if method == "median":
-            return cv2.medianBlur(image, MEDIAN_KERNEL)
+            return cv2.medianBlur(image, self.kernel_size)
         if method == "bilateral":
-            return cv2.bilateralFilter(
-                image, BILATERAL_DIAMETER, BILATERAL_SIGMA, BILATERAL_SIGMA
-            )
+            return cv2.bilateralFilter(image, self.diameter, self.sigma, self.sigma)
         return image.copy()
 
 
@@ -83,23 +94,37 @@ class ScratchRepairStep(Step):
       2. umbralizá el top-hat para quedarte con una máscara de los daños
          (cv2.threshold con un valor alto, o directamente Otsu);
       3. rellená con cv2.inpaint usando Inpainting TELEA o NS.
+
+    Todos esos valores se pueden ajustar desde la API: largo del kernel,
+    contraste mínimo, radio de relleno y método (telea/ns).
     """
 
     number = 2
     name = "scratch_repair"
     label = "Reparar rasguños"
 
-    def __init__(self, radius: int = INPAINT_RADIUS, flags: int = cv2.INPAINT_TELEA) -> None:
+    def __init__(
+        self,
+        length: int = SCRATCH_LENGTH,
+        min_contrast: int = SCRATCH_MIN_CONTRAST,
+        radius: int = INPAINT_RADIUS,
+        method: str = "telea",
+    ) -> None:
+        self.length = length
+        self.min_contrast = min_contrast
         self.radius = radius
-        self.flags = flags
+        self.method = method
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(radius={self.radius!r}, flags={self.flags!r})"
+        return (
+            f"{type(self).__name__}(length={self.length!r}, min_contrast={self.min_contrast!r}, "
+            f"radius={self.radius!r}, method={self.method!r})"
+        )
 
     def apply(self, image: np.ndarray) -> np.ndarray:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        horizontal = cv2.getStructuringElement(cv2.MORPH_RECT, (SCRATCH_LENGTH, 1))
-        vertical = cv2.getStructuringElement(cv2.MORPH_RECT, (1, SCRATCH_LENGTH))
+        horizontal = cv2.getStructuringElement(cv2.MORPH_RECT, (self.length, 1))
+        vertical = cv2.getStructuringElement(cv2.MORPH_RECT, (1, self.length))
 
         # Una raya clara y fina no sobrevive a la apertura con un kernel
         # perpendicular a su dirección: queda en el top-hat.
@@ -109,7 +134,7 @@ class ScratchRepairStep(Step):
         )
 
         threshold, _ = cv2.threshold(top_hat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        if threshold < SCRATCH_MIN_CONTRAST:
+        if threshold < self.min_contrast:
             return image.copy()  # Otsu separó textura o grano, no rayas
 
         _, mask = cv2.threshold(top_hat, threshold, 255, cv2.THRESH_BINARY)
@@ -117,7 +142,8 @@ class ScratchRepairStep(Step):
         if np.count_nonzero(mask) / mask.size > SCRATCH_MAX_FRACTION:
             return image.copy()  # demasiado "daño" para ser rasguños finos
 
-        return cv2.inpaint(image, mask, self.radius, self.flags)
+        flags = cv2.INPAINT_TELEA if self.method == "telea" else cv2.INPAINT_NS
+        return cv2.inpaint(image, mask, self.radius, flags)
 
 
 class ContrastStep(Step):

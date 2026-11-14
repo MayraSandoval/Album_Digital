@@ -108,6 +108,27 @@ def test_contrast_step_amplia_el_rango():
     assert after > before * 1.3, f"el contraste no subió: {before:.1f} → {after:.1f}"
 
 
+def test_denoise_mediana_respeta_la_ventana():
+    damaged = synth.salt_pepper(IMG, amount=0.05)
+    small = DenoiseStep(method="median", kernel_size=3).apply(damaged)
+    big = DenoiseStep(method="median", kernel_size=9).apply(damaged)
+    assert not np.array_equal(small, big)
+
+
+def test_scratch_respeta_el_metodo_de_relleno():
+    damaged = synth.scratched(IMG)
+    telea = ScratchRepairStep(method="telea").apply(damaged)
+    ns = ScratchRepairStep(method="ns").apply(damaged)
+    assert not np.array_equal(telea, ns)
+
+
+def test_contraste_respeta_el_clip():
+    flat = synth.low_contrast(IMG)
+    soft = ContrastStep(clip_limit=1.0).apply(flat)
+    strong = ContrastStep(clip_limit=6.0).apply(flat)
+    assert not np.array_equal(soft, strong)
+
+
 def test_los_pasos_no_modifican_la_entrada():
     for step in (DenoiseStep("median"), ScratchRepairStep(), ContrastStep()):
         damaged = synth.salt_pepper(synth.scratched(IMG))

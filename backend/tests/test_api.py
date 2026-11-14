@@ -115,6 +115,114 @@ def test_restaurar_con_opciones(client):
     assert response.json()["steps"] == []
 
 
+def test_restaurar_por_paso_ruido(client):
+    damaged = synth.salt_pepper(synth.photo(seed=101), amount=0.05)
+    body = _upload(client, damaged)
+    response = client.post(
+        f"/api/photos/{body['id']}/restore/denoise",
+        json={"method": "median", "kernel_size": 5},
+    )
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["operation"] == "denoise"
+    assert out["label"] == "Quitar ruido"
+    assert out["parameters"]["method"] == "median"
+    assert out["restored_url"] == f"/media/restored/{body['id']}.png"
+    assert (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+    assert client.get(out["restored_url"]).status_code == 200
+
+    saved = [
+        item
+        for item in client.get("/api/gallery").json()
+        if item["kind"] == "restored" and item["source_id"] == body["id"]
+    ]
+    assert len(saved) == 1
+
+
+def test_restaurar_por_paso_rasgunos(client):
+    body = _upload(client, synth.scratched(synth.photo(seed=102)))
+    response = client.post(
+        f"/api/photos/{body['id']}/restore/scratches",
+        json={"length": 25, "min_contrast": 40, "radius": 3, "method": "ns"},
+    )
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["operation"] == "scratches"
+    assert out["label"] == "Reparar rasguños"
+    assert out["parameters"] == {"length": 25, "min_contrast": 40, "radius": 3, "method": "ns"}
+    assert (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+
+
+def test_restaurar_por_paso_contraste(client):
+    body = _upload(client, synth.low_contrast(synth.photo(seed=103)))
+    response = client.post(
+        f"/api/photos/{body['id']}/restore/contrast",
+        json={"clip_limit": 4.0, "tile_size": 4},
+    )
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["operation"] == "contrast"
+    assert out["label"] == "Realzar contraste"
+    assert out["parameters"] == {"clip_limit": 4.0, "tile_size": 4}
+
+
+def test_restauracion_manual_encadena_y_reemplaza(client):
+    damaged = synth.salt_pepper(synth.scratched(synth.photo(seed=104)), amount=0.03)
+    body = _upload(client, damaged)
+    first = client.post(
+        f"/api/photos/{body['id']}/restore/denoise",
+        json={"method": "bilateral", "diameter": 5, "sigma": 75},
+    )
+    assert first.status_code == 200, first.text
+    path = STORAGE_DIR / "restored" / f"{body['id']}.png"
+    after_first = path.read_bytes()
+
+    second = client.post(
+        f"/api/photos/{body['id']}/restore/contrast",
+        json={"clip_limit": 3.0, "tile_size": 8},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["restored_url"] == first.json()["restored_url"]
+    assert path.read_bytes() != after_first, "el segundo paso no partió del primero"
+
+    saved = [
+        item
+        for item in client.get("/api/gallery").json()
+        if item["kind"] == "restored" and item["source_id"] == body["id"]
+    ]
+    assert len(saved) == 1
+    assert client.get(f"/api/photos/{body['id']}").json()["restored"] is True
+
+
+def test_restauracion_manual_valida_parametros(client):
+    body = _upload(client, synth.photo(seed=105))
+    even_kernel = client.post(
+        f"/api/photos/{body['id']}/restore/denoise",
+        json={"method": "median", "kernel_size": 4},
+    )
+    assert even_kernel.status_code == 422
+    unknown_method = client.post(
+        f"/api/photos/{body['id']}/restore/denoise",
+        json={"method": "gauss"},
+    )
+    assert unknown_method.status_code == 422
+    assert not (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+
+
+def test_descartar_restauracion_manual(client):
+    body = _upload(client, synth.photo(seed=106))
+    assert client.post(f"/api/photos/{body['id']}/restore/contrast", json={}).status_code == 200
+    path = STORAGE_DIR / "restored" / f"{body['id']}.png"
+    assert path.exists()
+
+    assert client.delete(f"/api/gallery/restored/{body['id']}").status_code == 204
+    assert not path.exists()
+    detail = client.get(f"/api/photos/{body['id']}").json()
+    assert detail["restored"] is False
+    assert detail["restored_url"] is None
+    assert client.get(f"/api/photos/{body['id']}").status_code == 200
+
+
 def test_diagnosticar_una_foto(client):
     body = _upload(client, synth.salt_pepper(synth.photo(seed=31), amount=0.05))
     response = client.get(f"/api/photos/{body['id']}/diagnose")
