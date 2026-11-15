@@ -10,7 +10,14 @@ import numpy as np
 
 from album import RestorationOptions, RestorationPipeline, Step
 from album.exceptions import NotImplementedYet
-from album.restoration import ContrastStep, DenoiseStep, ScratchRepairStep
+from album.quality import diagnose
+from album.restoration import (
+    ContrastStep,
+    DenoiseStep,
+    ScratchRepairStep,
+    SharpenStep,
+    WhiteBalanceStep,
+)
 from tests import synth
 
 IMG = synth.photo()
@@ -129,8 +136,43 @@ def test_contraste_respeta_el_clip():
     assert not np.array_equal(soft, strong)
 
 
+def test_white_balance_neutraliza_una_dominante():
+    casted = np.clip(IMG.astype(np.float32) * np.array([1.2, 1.0, 0.8]), 0, 255).astype(np.uint8)
+    balanced = WhiteBalanceStep(method="gray-world", stretch=False).apply(casted)
+    means = balanced.reshape(-1, 3).mean(axis=0)
+    assert means.max() - means.min() < 5, f"quedó dominante: {means}"
+
+
+def test_white_patch_lleva_los_blancos_al_maximo():
+    casted = np.clip(IMG.astype(np.float32) * np.array([1.2, 1.0, 0.8]), 0, 255).astype(np.uint8)
+    balanced = WhiteBalanceStep(method="white-patch", stretch=False).apply(casted)
+    highlights = np.percentile(balanced.reshape(-1, 3), 99.5, axis=0)
+    assert np.all(highlights > 245), f"los blancos no llegaron al máximo: {highlights}"
+
+
+def test_estirar_el_histograma_amplia_el_rango():
+    flat = synth.low_contrast(IMG)
+    before = flat.mean(axis=2).std()
+    stretched = WhiteBalanceStep(method="gray-world", stretch=True).apply(flat)
+    after = stretched.mean(axis=2).std()
+    assert after > before * 1.3, f"el rango no se amplió: {before:.1f} → {after:.1f}"
+
+
+def test_sharpen_aumenta_la_nitidez():
+    soft = synth.blurred(IMG, kernel=5)
+    before = diagnose(soft).sharpness
+    sharp = SharpenStep(amount=1.2, sigma=1.5).apply(soft)
+    after = diagnose(sharp).sharpness
+    assert after > before * 2, f"la nitidez no subió: {before:.0f} → {after:.0f}"
+
+
+def test_sharpen_con_amount_cero_no_cambia_nada():
+    assert np.array_equal(SharpenStep(amount=0).apply(IMG), IMG)
+
+
 def test_los_pasos_no_modifican_la_entrada():
-    for step in (DenoiseStep("median"), ScratchRepairStep(), ContrastStep()):
+    steps = (DenoiseStep("median"), ScratchRepairStep(), ContrastStep(), WhiteBalanceStep(), SharpenStep())
+    for step in steps:
         damaged = synth.salt_pepper(synth.scratched(IMG))
         original = damaged.copy()
         try:

@@ -12,11 +12,19 @@ from dataclasses import dataclass
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from album.exceptions import InvalidImage
 
 MAX_SIDE = 4000  # las fotos más grandes que esto se reducen antes de procesar
+ORIENTATION_TAG = 0x0112  # 274: orientación EXIF que escriben los celulares
+
+
+def _oriented(image: Image.Image) -> Image.Image:
+    """Aplica la orientación EXIF: los píxeles vienen rotados, el navegador la corrige."""
+    if image.getexif().get(ORIENTATION_TAG) in (None, 1):
+        return image
+    return ImageOps.exif_transpose(image) or image
 
 
 @dataclass(frozen=True)
@@ -37,7 +45,7 @@ def decode(data: bytes) -> np.ndarray:
     """
     try:
         with Image.open(io.BytesIO(data)) as im:
-            rgb = im.convert("RGB")
+            rgb = _oriented(im).convert("RGB")
     except Exception:
         raise InvalidImage("No se pudo abrir la imagen (¿vacía, corrupta o no es una imagen?).") from None
     return np.asarray(rgb, dtype=np.uint8).copy()
@@ -54,8 +62,9 @@ def inspect(data: bytes) -> ImageInfo:
     """Describe los bytes SIN procesarlos: tamaño, canales y modo original."""
     try:
         with Image.open(io.BytesIO(data)) as im:
-            width, height = im.size
-            mode = im.mode
+            upright = _oriented(im)
+            width, height = upright.size
+            mode = upright.mode
     except Exception:
         raise InvalidImage("No se pudo abrir la imagen (¿vacía, corrupta o no es una imagen?).") from None
     return ImageInfo(width=width, height=height, channels=3, dtype="uint8", mode=mode)

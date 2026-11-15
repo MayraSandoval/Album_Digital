@@ -10,6 +10,8 @@ cambiar su tamaño. El pipeline los corre en este orden:
 
 from __future__ import annotations
 
+from typing import Literal
+
 import cv2
 import numpy as np
 
@@ -173,3 +175,95 @@ class ContrastStep(Step):
         lightness, a, b = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2LAB))
         clahe = cv2.createCLAHE(clipLimit=self.clip_limit, tileGridSize=self.tile_grid)
         return cv2.cvtColor(cv2.merge((clahe.apply(lightness), a, b)), cv2.COLOR_LAB2RGB)
+
+
+WB_MIN_GAIN = 0.5              # límite de la corrección por canal (evita colores raros)
+WB_MAX_GAIN = 2.0
+WB_HIGHLIGHT_PERCENTILE = 99.5  # white patch: ignora los reflejos más extremos
+STRETCH_LOW = 1.0              # percentiles del estiramiento del canal L
+STRETCH_HIGH = 99.0
+
+
+class WhiteBalanceStep(Step):
+    """Paso 4: corregir la dominante de color y el contraste desvanecido.
+
+    1. Balance de blancos (igual que en el TP-2):
+       - "gray-world" supone que el promedio de la escena es gris: escala
+         cada canal por media_gris / media_canal;
+       - "white-patch" supone que el punto más claro es blanco: escala cada
+         canal para llevar su percentil alto al 255.
+    2. Estiramiento del histograma en LAB: lleva los percentiles 1 % y 99 %
+       del canal L a 0 y 255 (sobre el gris, sin tocar el color).
+    """
+
+    number = 4
+    name = "white_balance"
+    label = "Balance de blancos"
+
+    def __init__(
+        self,
+        method: Literal["gray-world", "white-patch"] = "gray-world",
+        stretch: bool = True,
+    ) -> None:
+        self.method = method
+        self.stretch = stretch
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(method={self.method!r}, stretch={self.stretch!r})"
+
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        balanced = _balance_white(image, self.method)
+        return _stretch_lightness(balanced) if self.stretch else balanced
+
+
+def _balance_white(image: np.ndarray, method: str) -> np.ndarray:
+    pixels = image.reshape(-1, 3).astype(np.float32)
+    if method == "gray-world":
+        means = pixels.mean(axis=0)
+        gains = means.mean() / np.maximum(means, 1.0)
+    else:
+        highlights = np.percentile(pixels, WB_HIGHLIGHT_PERCENTILE, axis=0)
+        gains = 255.0 / np.maximum(highlights, 1.0)
+    gains = np.clip(gains, WB_MIN_GAIN, WB_MAX_GAIN)
+    return np.clip(image.astype(np.float32) * gains, 0, 255).astype(np.uint8)
+
+
+def _stretch_lightness(image: np.ndarray) -> np.ndarray:
+    lightness, a, b = cv2.split(cv2.cvtColor(image, cv2.COLOR_RGB2LAB))
+    low, high = np.percentile(lightness, (STRETCH_LOW, STRETCH_HIGH))
+    if high <= low:
+        return image.copy()  # no hay rango que estirar
+    stretched = (lightness.astype(np.float32) - low) * (255.0 / (high - low))
+    stretched = np.clip(stretched, 0, 255).astype(np.uint8)
+    return cv2.cvtColor(cv2.merge((stretched, a, b)), cv2.COLOR_LAB2RGB)
+
+
+SHARPEN_AMOUNT = 0.8  # cuánto se suma de la diferencia con la versión borrosa
+SHARPEN_SIGMA = 1.2   # radio del desenfoque gaussiano (en píxeles)
+
+
+class SharpenStep(Step):
+    """Paso 5: realzar bordes con unsharp mask (receta del TP-2).
+
+    Se desenfoca una copia con un gaussiano y se suma la diferencia:
+        nítida = original + amount · (original − borrosa)
+    Con amount bajo realza ojos, textura y bordes sin inflar el ruido;
+    conviene aplicarlo siempre al final, después de quitar ruido.
+    """
+
+    number = 5
+    name = "sharpen"
+    label = "Realzar nitidez"
+
+    def __init__(self, amount: float = SHARPEN_AMOUNT, sigma: float = SHARPEN_SIGMA) -> None:
+        self.amount = amount
+        self.sigma = sigma
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(amount={self.amount!r}, sigma={self.sigma!r})"
+
+    def apply(self, image: np.ndarray) -> np.ndarray:
+        if self.amount <= 0:
+            return image.copy()
+        blurred = cv2.GaussianBlur(image, (0, 0), self.sigma)
+        return cv2.addWeighted(image, 1.0 + self.amount, blurred, -self.amount, 0)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Form, HTTPException
@@ -12,12 +13,22 @@ from app.schemas import (
     DenoiseIn,
     ErrorOut,
     ManualRestoreOut,
+    RestoreMetricsOut,
     RestoreOut,
     ScratchRepairIn,
+    SharpenIn,
     StepOut,
+    WhiteBalanceIn,
 )
 from album import RestorationOptions, RestorationPipeline, decode, encode_png
-from album.restoration import ContrastStep, DenoiseStep, ScratchRepairStep
+from album.quality import diagnose, mse, psnr
+from album.restoration import (
+    ContrastStep,
+    DenoiseStep,
+    ScratchRepairStep,
+    SharpenStep,
+    WhiteBalanceStep,
+)
 
 router = APIRouter(prefix="/api/photos", tags=["restauración"])
 album = Album(STORAGE_DIR)
@@ -54,10 +65,25 @@ def _current_image(entry: dict):
     return album.read_image(entry)
 
 
+def _compare(original, image) -> RestoreMetricsOut:
+    """Métricas de la restauración contra el original: nitidez, ruido y PSNR."""
+    before = diagnose(original)
+    after = diagnose(image)
+    value = psnr(original, image)
+    return RestoreMetricsOut(
+        sharpness_before=before.sharpness,
+        sharpness_after=after.sharpness,
+        noise_before=before.noise,
+        noise_after=after.noise,
+        mse=mse(original, image),
+        psnr=value if math.isfinite(value) else None,
+    )
+
+
 def _apply_step(
     entry: dict,
     step,
-    operation: Literal["denoise", "scratches", "contrast"],
+    operation: Literal["denoise", "scratches", "contrast", "whitebalance", "sharpen"],
     parameters: dict,
 ) -> ManualRestoreOut:
     trace = pipeline.run(_current_image(entry), steps=[step])
@@ -81,6 +107,7 @@ def _apply_step(
         height=int(image.shape[0]),
         original_url=f"{MEDIA_URL}/photos/{entry['filename']}",
         restored_url=f"{MEDIA_URL}/{relative}",
+        metrics=_compare(album.read_image(entry), image),
     )
 
 
@@ -173,3 +200,27 @@ def restore_contrast(photo_id: str, params: ContrastIn):
         tile_grid=(params.tile_size, params.tile_size),
     )
     return _apply_step(entry, step, "contrast", params.model_dump())
+
+
+@router.post(
+    "/{photo_id}/restore/whitebalance",
+    response_model=ManualRestoreOut,
+    summary="Paso manual: balance de blancos y estiramiento del histograma",
+    responses=ERRORS,
+)
+def restore_white_balance(photo_id: str, params: WhiteBalanceIn):
+    entry = _photo(photo_id)
+    step = WhiteBalanceStep(method=params.method, stretch=params.stretch)
+    return _apply_step(entry, step, "whitebalance", params.model_dump())
+
+
+@router.post(
+    "/{photo_id}/restore/sharpen",
+    response_model=ManualRestoreOut,
+    summary="Paso manual: realzar nitidez (unsharp mask)",
+    responses=ERRORS,
+)
+def restore_sharpen(photo_id: str, params: SharpenIn):
+    entry = _photo(photo_id)
+    step = SharpenStep(amount=params.amount, sigma=params.sigma)
+    return _apply_step(entry, step, "sharpen", params.model_dump())

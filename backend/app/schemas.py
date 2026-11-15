@@ -79,15 +79,43 @@ class ContrastIn(BaseModel):
     tile_size: int = Field(8, ge=2, le=32, description="Lado de la grilla de tiles")
 
 
+class WhiteBalanceIn(BaseModel):
+    """Parámetros del paso "Balance de blancos"."""
+
+    method: Literal["gray-world", "white-patch"] = Field(
+        "gray-world", description="gray-world (promedio gris) o white-patch (punto blanco)"
+    )
+    stretch: bool = Field(True, description="Estirar el histograma del canal L en LAB")
+
+
+class SharpenIn(BaseModel):
+    """Parámetros del paso "Realzar nitidez" (unsharp mask)."""
+
+    amount: float = Field(0.8, ge=0.0, le=2.0, description="Intensidad del realce")
+    sigma: float = Field(1.2, gt=0, le=5.0, description="Radio del desenfoque gaussiano")
+
+
+class RestoreMetricsOut(BaseModel):
+    """Comparación de la foto restaurada contra el original."""
+
+    sharpness_before: float
+    sharpness_after: float
+    noise_before: float
+    noise_after: float
+    mse: float = Field(description="Error cuadrático medio contra el original")
+    psnr: float | None = Field(description="PSNR en dB; None si las imágenes son idénticas")
+
+
 class ManualRestoreOut(BaseModel):
     photo_id: str
-    operation: Literal["denoise", "scratches", "contrast"]
+    operation: Literal["denoise", "scratches", "contrast", "whitebalance", "sharpen"]
     label: str
-    parameters: dict[str, str | int | float]
+    parameters: dict[str, str | int | float | bool]
     width: int
     height: int
     original_url: str
     restored_url: str
+    metrics: RestoreMetricsOut
 
 
 class QualityOut(BaseModel):

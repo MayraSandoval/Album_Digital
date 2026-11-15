@@ -4,17 +4,28 @@
 
 from __future__ import annotations
 
+import io
 import json
 
 import numpy as np
+from PIL import Image
 
-from album import encode_png
+from album import decode, encode_png, to_pil
 from app.config import STORAGE_DIR
 from tests import synth
 
 
 def _png(image: np.ndarray) -> bytes:
     return encode_png(image)
+
+
+def _png_rotada(image: np.ndarray, orientation: int = 6) -> bytes:
+    """PNG con los píxeles girados y la orientación EXIF que anota el celular."""
+    exif = Image.Exif()
+    exif[274] = orientation
+    buffer = io.BytesIO()
+    to_pil(image).save(buffer, format="PNG", exif=exif)
+    return buffer.getvalue()
 
 
 def _clear_album(client):
@@ -74,6 +85,33 @@ def test_subir_una_foto(client):
 def test_subir_algo_que_no_es_imagen(client):
     response = client.post("/api/photos", files={"file": ("foto.png", b"no soy una imagen", "image/png")})
     assert response.status_code == 422
+
+
+def test_la_orientacion_exif_se_respeta(client):
+    upright = synth.photo(width=120, height=200, seed=107)
+    sideways = np.ascontiguousarray(np.rot90(upright))  # como lo guarda el celular
+    response = client.post(
+        "/api/photos", files={"file": ("celular.png", _png_rotada(sideways), "image/png")}
+    )
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert (body["width"], body["height"]) == (120, 200)
+
+    stored = decode(client.get(body["url"]).content)
+    assert stored.shape[:2] == upright.shape[:2]
+    assert np.array_equal(stored, upright)
+
+
+def test_la_restauracion_conserva_la_orientacion(client):
+    upright = synth.photo(width=120, height=200, seed=108)
+    body = client.post(
+        "/api/photos",
+        files={"file": ("celular.png", _png_rotada(np.ascontiguousarray(np.rot90(upright))), "image/png")},
+    ).json()
+    response = client.post(f"/api/photos/{body['id']}/restore/denoise", json={"method": "median"})
+    assert response.status_code == 200, response.text
+    restored = decode(client.get(response.json()["restored_url"]).content)
+    assert restored.shape[:2] == upright.shape[:2]
 
 
 def test_foto_inexistente(client):
@@ -164,6 +202,60 @@ def test_restaurar_por_paso_contraste(client):
     assert out["operation"] == "contrast"
     assert out["label"] == "Realzar contraste"
     assert out["parameters"] == {"clip_limit": 4.0, "tile_size": 4}
+
+
+def test_restaurar_por_paso_balance_de_blancos(client):
+    casted = np.clip(
+        synth.photo(seed=109).astype(np.float32) * np.array([1.2, 1.0, 0.8]), 0, 255
+    ).astype(np.uint8)
+    body = _upload(client, casted)
+    response = client.post(
+        f"/api/photos/{body['id']}/restore/whitebalance",
+        json={"method": "gray-world", "stretch": True},
+    )
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["operation"] == "whitebalance"
+    assert out["label"] == "Balance de blancos"
+    assert out["parameters"] == {"method": "gray-world", "stretch": True}
+    assert set(out["metrics"]) == {
+        "sharpness_before",
+        "sharpness_after",
+        "noise_before",
+        "noise_after",
+        "mse",
+        "psnr",
+    }
+    assert out["metrics"]["mse"] > 0
+
+
+def test_restaurar_por_paso_nitidez(client):
+    body = _upload(client, synth.blurred(synth.photo(seed=110)))
+    response = client.post(
+        f"/api/photos/{body['id']}/restore/sharpen",
+        json={"amount": 1.0, "sigma": 1.5},
+    )
+    assert response.status_code == 200, response.text
+    out = response.json()
+    assert out["operation"] == "sharpen"
+    assert out["label"] == "Realzar nitidez"
+    assert out["parameters"] == {"amount": 1.0, "sigma": 1.5}
+    assert out["metrics"]["sharpness_after"] > out["metrics"]["sharpness_before"]
+
+
+def test_los_pasos_nuevos_validan_parametros(client):
+    body = _upload(client, synth.photo(seed=111))
+    bad_method = client.post(
+        f"/api/photos/{body['id']}/restore/whitebalance",
+        json={"method": "otro"},
+    )
+    assert bad_method.status_code == 422
+    bad_amount = client.post(
+        f"/api/photos/{body['id']}/restore/sharpen",
+        json={"amount": 3.0},
+    )
+    assert bad_amount.status_code == 422
+    assert not (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
 
 
 def test_restauracion_manual_encadena_y_reemplaza(client):

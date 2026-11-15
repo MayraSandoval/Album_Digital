@@ -57,13 +57,17 @@ separado, como en el TP-1, cada una con sus propios parámetros:
 | Quitar ruido | mediana (sal y pimienta) o bilateral (ruido fino) | ventana de la mediana; diámetro y sigma del bilateral |
 | Reparar rasguños | top-hat alargado + umbral Otsu + inpainting | largo del kernel, contraste mínimo, radio y TELEA/NS |
 | Realzar contraste | CLAHE sobre la luminancia | clip limit y grilla de tiles |
+| Balance de blancos | gray-world o white patch + estiramiento del canal L en LAB | método y estiramiento on/off |
+| Realzar nitidez | unsharp mask (original − versión gaussiana) | intensidad y radio del gaussiano |
 
 Cada paso trabaja sobre el resultado del paso anterior y reemplaza la
 restauración de esa foto en `storage/restored/`; la foto original nunca se
-modifica. «Volver al original» descarta la restauración. La versión automática
+modifica. Después de cada paso la API devuelve las métricas frente al
+original (nitidez, ruido, MSE y PSNR), que el panel muestra bajo el historial.
+"Volver al original" descarta la restauración. La versión automática
 (los tres pasos de corrido) sigue disponible en `POST /api/photos/{id}/restore`,
 y los pasos manuales en `POST /api/photos/{id}/restore/denoise`,
-`.../scratches` y `.../contrast`.
+`.../scratches`, `.../contrast`, `.../whitebalance` y `.../sharpen`.
 
 ## Estilo retro
 
