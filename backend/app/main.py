@@ -1,4 +1,4 @@
-"""Aplicación web del álbum.
+"""Aplicación web del álbum. Dado.
 
 Sirve el frontend y la API; el procesamiento vive en el paquete `album`
 (el core), que también se usa desde la consola (`python -m album`).
@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import FRONTEND_DIR, MEDIA_URL, PHOTOS_DIR, RESTORED_DIR, RETRO_DIR, SCANNED_DIR, STORAGE_DIR
 from app.errors import register_exception_handlers
-from app.routers import gallery, photos, restore, retro, scan, search
+from app.routers import gallery, photos, presets, restore, retro, scan, search
 
 
 @asynccontextmanager
@@ -45,6 +45,7 @@ def health():
 
 
 app.include_router(photos.router)
+app.include_router(presets.router)
 app.include_router(restore.router)
 app.include_router(retro.router)
 app.include_router(scan.router)

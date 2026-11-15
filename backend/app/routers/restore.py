@@ -8,11 +8,14 @@ from fastapi import APIRouter, Form, HTTPException
 from app.album import Album
 from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
 from app.gallery import Gallery
+from app.presets import PresetStore
 from app.schemas import (
+    AppliedPresetStepOut,
     ContrastIn,
     DenoiseIn,
     ErrorOut,
     ManualRestoreOut,
+    PresetApplyOut,
     RestoreMetricsOut,
     RestoreOut,
     ScratchRepairIn,
@@ -20,19 +23,14 @@ from app.schemas import (
     StepOut,
     WhiteBalanceIn,
 )
+from app.steps import build_step
 from album import RestorationOptions, RestorationPipeline, decode, encode_png
 from album.quality import diagnose, mse, psnr
-from album.restoration import (
-    ContrastStep,
-    DenoiseStep,
-    ScratchRepairStep,
-    SharpenStep,
-    WhiteBalanceStep,
-)
 
 router = APIRouter(prefix="/api/photos", tags=["restauración"])
 album = Album(STORAGE_DIR)
 gallery = Gallery(STORAGE_DIR)
+presets = PresetStore(STORAGE_DIR)
 pipeline = RestorationPipeline()
 
 ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
@@ -161,13 +159,8 @@ async def restore_photo(
 )
 def restore_denoise(photo_id: str, params: DenoiseIn):
     entry = _photo(photo_id)
-    step = DenoiseStep(
-        method=params.method,
-        kernel_size=params.kernel_size,
-        diameter=params.diameter,
-        sigma=params.sigma,
-    )
-    return _apply_step(entry, step, "denoise", params.model_dump())
+    parameters = params.model_dump()
+    return _apply_step(entry, build_step("denoise", parameters), "denoise", parameters)
 
 
 @router.post(
@@ -178,13 +171,8 @@ def restore_denoise(photo_id: str, params: DenoiseIn):
 )
 def restore_scratches(photo_id: str, params: ScratchRepairIn):
     entry = _photo(photo_id)
-    step = ScratchRepairStep(
-        length=params.length,
-        min_contrast=params.min_contrast,
-        radius=params.radius,
-        method=params.method,
-    )
-    return _apply_step(entry, step, "scratches", params.model_dump())
+    parameters = params.model_dump()
+    return _apply_step(entry, build_step("scratches", parameters), "scratches", parameters)
 
 
 @router.post(
@@ -195,11 +183,8 @@ def restore_scratches(photo_id: str, params: ScratchRepairIn):
 )
 def restore_contrast(photo_id: str, params: ContrastIn):
     entry = _photo(photo_id)
-    step = ContrastStep(
-        clip_limit=params.clip_limit,
-        tile_grid=(params.tile_size, params.tile_size),
-    )
-    return _apply_step(entry, step, "contrast", params.model_dump())
+    parameters = params.model_dump()
+    return _apply_step(entry, build_step("contrast", parameters), "contrast", parameters)
 
 
 @router.post(
@@ -210,8 +195,8 @@ def restore_contrast(photo_id: str, params: ContrastIn):
 )
 def restore_white_balance(photo_id: str, params: WhiteBalanceIn):
     entry = _photo(photo_id)
-    step = WhiteBalanceStep(method=params.method, stretch=params.stretch)
-    return _apply_step(entry, step, "whitebalance", params.model_dump())
+    parameters = params.model_dump()
+    return _apply_step(entry, build_step("whitebalance", parameters), "whitebalance", parameters)
 
 
 @router.post(
@@ -222,5 +207,46 @@ def restore_white_balance(photo_id: str, params: WhiteBalanceIn):
 )
 def restore_sharpen(photo_id: str, params: SharpenIn):
     entry = _photo(photo_id)
-    step = SharpenStep(amount=params.amount, sigma=params.sigma)
-    return _apply_step(entry, step, "sharpen", params.model_dump())
+    parameters = params.model_dump()
+    return _apply_step(entry, build_step("sharpen", parameters), "sharpen", parameters)
+
+
+@router.post(
+    "/{photo_id}/restore/preset/{preset_id}",
+    response_model=PresetApplyOut,
+    summary="Aplicar una configuración guardada sobre el resultado actual",
+    responses=ERRORS,
+)
+def restore_with_preset(photo_id: str, preset_id: str):
+    entry = _photo(photo_id)
+    preset = presets.get(preset_id)
+    if preset is None:
+        raise HTTPException(status_code=404, detail=f"No hay ninguna configuración con id {preset_id}.")
+
+    steps = [build_step(item["operation"], item["parameters"]) for item in preset["steps"]]
+    trace = pipeline.run(_current_image(entry), steps=steps)
+    for result in trace.results:
+        if result.status != "done" or result.image is None:
+            raise HTTPException(
+                status_code=422,
+                detail=result.message or f"No se pudo aplicar el paso {result.step.label}.",
+            )
+
+    image = trace.image
+    item = gallery.add_restored(entry["id"], encode_png(image), image.shape[1], image.shape[0])
+    relative = f"{item['folder']}/{item['filename']}"
+    album.mark_restored(entry, relative)
+    return PresetApplyOut(
+        photo_id=entry["id"],
+        preset_id=preset["id"],
+        preset_name=preset["name"],
+        steps=[
+            AppliedPresetStepOut(operation=spec["operation"], label=step.label, parameters=spec["parameters"])
+            for spec, step in zip(preset["steps"], steps)
+        ],
+        width=int(image.shape[1]),
+        height=int(image.shape[0]),
+        original_url=f"{MEDIA_URL}/photos/{entry['filename']}",
+        restored_url=f"{MEDIA_URL}/{relative}",
+        metrics=_compare(album.read_image(entry), image),
+    )

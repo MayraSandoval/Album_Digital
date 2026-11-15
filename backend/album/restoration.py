@@ -27,6 +27,8 @@ SCRATCH_LENGTH = 25            # largo del kernel alargado del top-hat
 SCRATCH_MIN_CONTRAST = 40      # umbral Otsu mínimo para creer que hay rayas
 SCRATCH_MAX_FRACTION = 0.05    # si la máscara cubre más, es textura y no rayas
 INPAINT_RADIUS = 3
+SCRATCH_MIN_COMPONENT = 50          # píxeles: brillos de ojos y cejas son más chicos
+SCRATCH_MIN_COMPONENT_FRACTION = 0.0001  # en fotos grandes, la textura ocupa más píxeles
 
 CLAHE_CLIP_LIMIT = 2.5  # 2.0 (notebook) no llegaba a 1.3× en el sintético; 2.5 sí
 CLAHE_TILE_GRID = (8, 8)
@@ -140,12 +142,28 @@ class ScratchRepairStep(Step):
             return image.copy()  # Otsu separó textura o grano, no rayas
 
         _, mask = cv2.threshold(top_hat, threshold, 255, cv2.THRESH_BINARY)
-        mask = cv2.dilate(mask, np.ones((3, 3), np.uint8), iterations=1)
+        mask = _drop_small_components(mask)
         if np.count_nonzero(mask) / mask.size > SCRATCH_MAX_FRACTION:
             return image.copy()  # demasiado "daño" para ser rasguños finos
 
         flags = cv2.INPAINT_TELEA if self.method == "telea" else cv2.INPAINT_NS
         return cv2.inpaint(image, mask, self.radius, flags)
+
+
+def _drop_small_components(mask: np.ndarray) -> np.ndarray:
+    """Deja solo los trazos largos: los brillos de ojos, cejas y el grano son chicos.
+
+    El umbral Otsu solo no alcanza: en una cara también marca los reflejos de
+    la mirada y, al rellenarlos, borra la expresión. Una raya tiene cientos de
+    píxeles conectados; un reflejo, unas decenas.
+    """
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(mask)
+    min_area = max(SCRATCH_MIN_COMPONENT, round(mask.size * SCRATCH_MIN_COMPONENT_FRACTION))
+    keep = np.zeros_like(mask)
+    for label in range(1, count):
+        if stats[label, cv2.CC_STAT_AREA] >= min_area:
+            keep[labels == label] = 255
+    return keep
 
 
 class ContrastStep(Step):

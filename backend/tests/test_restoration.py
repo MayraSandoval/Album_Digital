@@ -107,6 +107,18 @@ def test_scratch_repair_tapa_las_rayas():
     assert after < before - 50, f"la raya sigue clara: {before:.0f} → {after:.0f}"
 
 
+def test_scratch_no_borra_los_detalles_chicos():
+    base = synth.photo(seed=3)
+    damaged = base.copy()
+    damaged[50:52, 20:220] = 255    # raya larga: hay que taparla
+    damaged[120:126, 160:166] = 255  # brillo chico: es un ojo, no una raya
+
+    restored = ScratchRepairStep(min_contrast=0).apply(damaged)
+
+    assert restored[49:53, 20:220].mean() < 150, "la raya larga sigue ahí"
+    assert restored[120:126, 160:166].mean() > 240, "el paso borró un detalle chico"
+
+
 def test_contrast_step_amplia_el_rango():
     flat = synth.low_contrast(IMG)
     before = flat.mean(axis=2).std()

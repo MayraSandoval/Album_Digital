@@ -1,5 +1,7 @@
 """Tests de contrato de la API (todo el flujo del álbum).
 
+Mientras el core tenga partes sin implementar, los endpoints afectados
+responden 501: estos tests fallan hasta que implementes cada módulo.
 """
 
 from __future__ import annotations
@@ -313,6 +315,98 @@ def test_descartar_restauracion_manual(client):
     assert detail["restored"] is False
     assert detail["restored_url"] is None
     assert client.get(f"/api/photos/{body['id']}").status_code == 200
+
+
+def test_configuracion_se_guarda_lista_y_borra(client):
+    steps = [
+        {"operation": "whitebalance", "parameters": {"method": "gray-world", "stretch": False}},
+        {"operation": "scratches", "parameters": {"length": 25, "min_contrast": 20, "radius": 1, "method": "telea"}},
+    ]
+    created = client.post("/api/presets", json={"name": "Receta de prueba", "steps": steps})
+    assert created.status_code == 200, created.text
+    preset = created.json()
+    assert preset["name"] == "Receta de prueba"
+    assert [step["operation"] for step in preset["steps"]] == ["whitebalance", "scratches"]
+    assert preset["steps"][0]["parameters"] == {"method": "gray-world", "stretch": False}
+    assert preset["steps"][1]["parameters"] == {
+        "length": 25,
+        "min_contrast": 20,
+        "radius": 1,
+        "method": "telea",
+    }
+    assert any(item["id"] == preset["id"] for item in client.get("/api/presets").json())
+
+    updated = client.post(
+        "/api/presets",
+        json={"name": "  RECETA DE PRUEBA ", "steps": [steps[0]]},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["id"] == preset["id"]
+    assert len(updated.json()["steps"]) == 1
+
+    assert client.delete(f"/api/presets/{preset['id']}").status_code == 204
+    assert all(item["id"] != preset["id"] for item in client.get("/api/presets").json())
+    assert client.delete(f"/api/presets/{preset['id']}").status_code == 404
+
+
+def test_configuracion_valida_parametros(client):
+    invalid_contrast = client.post(
+        "/api/presets",
+        json={"name": "Contraste inválido", "steps": [{"operation": "contrast", "parameters": {"clip_limit": 99}}]},
+    )
+    assert invalid_contrast.status_code == 422
+    empty = client.post("/api/presets", json={"name": "Sin pasos", "steps": []})
+    assert empty.status_code == 422
+    blank_name = client.post(
+        "/api/presets",
+        json={"name": "   ", "steps": [{"operation": "contrast", "parameters": {}}]},
+    )
+    assert blank_name.status_code == 422
+    unknown = client.post(
+        "/api/presets",
+        json={"name": "Operación rara", "steps": [{"operation": "inventada", "parameters": {}}]},
+    )
+    assert unknown.status_code == 422
+    saved = {item["name"] for item in client.get("/api/presets").json()}
+    assert not saved & {"Contraste inválido", "Sin pasos", "Operación rara"}
+
+
+def test_aplicar_configuracion_guardada(client):
+    body = _upload(client, synth.low_contrast(synth.scratched(synth.photo(seed=120))))
+    steps = [
+        {"operation": "whitebalance", "parameters": {"method": "gray-world", "stretch": False}},
+        {"operation": "contrast", "parameters": {"clip_limit": 1.5, "tile_size": 8}},
+        {"operation": "sharpen", "parameters": {"amount": 0.3, "sigma": 1.5}},
+    ]
+    preset = client.post("/api/presets", json={"name": "Receta aplicada", "steps": steps}).json()
+    try:
+        response = client.post(f"/api/photos/{body['id']}/restore/preset/{preset['id']}")
+        assert response.status_code == 200, response.text
+        out = response.json()
+        assert out["preset_name"] == "Receta aplicada"
+        assert [step["label"] for step in out["steps"]] == [
+            "Balance de blancos",
+            "Realzar contraste",
+            "Realzar nitidez",
+        ]
+        assert out["steps"][1]["parameters"] == {"clip_limit": 1.5, "tile_size": 8}
+        assert out["restored_url"] == f"/media/restored/{body['id']}.png"
+        assert (STORAGE_DIR / "restored" / f"{body['id']}.png").exists()
+        assert client.get(out["restored_url"]).status_code == 200
+        assert client.get(f"/api/photos/{body['id']}").json()["restored"] is True
+        assert out["metrics"]["sharpness_after"] > out["metrics"]["sharpness_before"]
+        assert any(
+            item["kind"] == "restored" and item["source_id"] == body["id"]
+            for item in client.get("/api/gallery").json()
+        )
+    finally:
+        client.delete(f"/api/presets/{preset['id']}")
+
+
+def test_aplicar_configuracion_inexistente(client):
+    body = _upload(client, synth.photo(seed=121))
+    response = client.post(f"/api/photos/{body['id']}/restore/preset/no-existe")
+    assert response.status_code == 404
 
 
 def test_diagnosticar_una_foto(client):

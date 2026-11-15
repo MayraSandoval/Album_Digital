@@ -1,10 +1,12 @@
-"""Schemas de la API (pydantic)."""
+"""Schemas de la API (pydantic). Dado."""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
+
+StepOperation = Literal["denoise", "scratches", "contrast", "whitebalance", "sharpen"]
 
 
 class ErrorOut(BaseModel):
@@ -41,7 +43,7 @@ class RestoreOut(BaseModel):
 
 
 class DenoiseIn(BaseModel):
-    """Parámetros del paso "Quitar ruido" (se aplica uno por vez)."""
+    """Parámetros del paso "Quitar ruido" (se aplica uno por vez, estilo TP-1)."""
 
     method: Literal["median", "bilateral"] = Field("median", description="Filtro a aplicar")
     kernel_size: int = Field(5, ge=3, le=15, description="Ventana de la mediana (impar)")
@@ -95,6 +97,55 @@ class SharpenIn(BaseModel):
     sigma: float = Field(1.2, gt=0, le=5.0, description="Radio del desenfoque gaussiano")
 
 
+STEP_MODELS: dict[str, type[BaseModel]] = {
+    "denoise": DenoiseIn,
+    "scratches": ScratchRepairIn,
+    "contrast": ContrastIn,
+    "whitebalance": WhiteBalanceIn,
+    "sharpen": SharpenIn,
+}
+
+
+class PresetStepIn(BaseModel):
+    """Un paso guardado: la operación manual y sus parámetros."""
+
+    operation: StepOperation
+    parameters: dict[str, str | int | float | bool] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validar_parametros(self):
+        model = STEP_MODELS[self.operation]
+        try:
+            data = model.model_validate(self.parameters)
+        except ValidationError as exc:
+            raise ValueError(f"parámetros inválidos para {self.operation}: {exc}") from None
+        self.parameters = data.model_dump()
+        return self
+
+
+class PresetIn(BaseModel):
+    """Una configuración nueva; el nombre es el que elige el usuario."""
+
+    name: str = Field(min_length=1, max_length=60)
+    steps: list[PresetStepIn] = Field(min_length=1, max_length=20)
+
+    @field_validator("name")
+    @classmethod
+    def _nombre_no_vacio(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("el nombre no puede estar vacío")
+        return value
+
+
+class PresetOut(BaseModel):
+    id: str
+    name: str
+    steps: list[PresetStepIn]
+    created: str
+    updated: str
+
+
 class RestoreMetricsOut(BaseModel):
     """Comparación de la foto restaurada contra el original."""
 
@@ -108,9 +159,27 @@ class RestoreMetricsOut(BaseModel):
 
 class ManualRestoreOut(BaseModel):
     photo_id: str
-    operation: Literal["denoise", "scratches", "contrast", "whitebalance", "sharpen"]
+    operation: StepOperation
     label: str
     parameters: dict[str, str | int | float | bool]
+    width: int
+    height: int
+    original_url: str
+    restored_url: str
+    metrics: RestoreMetricsOut
+
+
+class AppliedPresetStepOut(BaseModel):
+    operation: StepOperation
+    label: str
+    parameters: dict[str, str | int | float | bool]
+
+
+class PresetApplyOut(BaseModel):
+    photo_id: str
+    preset_id: str
+    preset_name: str
+    steps: list[AppliedPresetStepOut]
     width: int
     height: int
     original_url: str
