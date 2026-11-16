@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Query
 
+from album import decode, descriptors
 from app.album import Album
-from app.config import STORAGE_DIR
-from app.routers.photos import _photo_out
-from app.schemas import ColorMatchOut, ErrorOut, SimilarMatchOut
+from app.config import MEDIA_URL, STORAGE_DIR
+from app.gallery import Gallery
+from app.schemas import ColorMatchOut, ErrorOut, SearchPhotoOut, SimilarMatchOut
 
 router = APIRouter(prefix="/api/search", tags=["búsqueda"])
 album = Album(STORAGE_DIR)
+gallery = Gallery(STORAGE_DIR)
+
+ORIGINAL = "original"
 
 ERRORS = {422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
@@ -23,10 +27,32 @@ def _parse_hex(hex_color: str) -> tuple[int, int, int]:
         raise HTTPException(status_code=422, detail="El color debe ser un hexadecimal RRGGBB.") from None
 
 
+def _catalog() -> list[dict]:
+    """Todas las imágenes de storage/: originales, digitalizadas, restauradas y retro."""
+    originals = [{**entry, "kind": ORIGINAL, "folder": "photos"} for entry in album.all()]
+    return originals + gallery.all_with_legacy(album.all())
+
+
+def _read(item: dict):
+    return decode((STORAGE_DIR / item["folder"] / item["filename"]).read_bytes())
+
+
+def _match_out(item: dict) -> SearchPhotoOut:
+    return SearchPhotoOut(
+        id=item["id"],
+        kind=item["kind"],
+        width=item["width"],
+        height=item["height"],
+        created=item["created"],
+        url=f"{MEDIA_URL}/{item['folder']}/{item['filename']}",
+        source_id=item.get("source_id"),
+    )
+
+
 @router.get(
     "/color",
     response_model=list[ColorMatchOut],
-    summary="Buscar fotos por color (fracción de píxeles de ese color)",
+    summary="Buscar fotos por color en todo el almacenamiento (fracción de píxeles de ese color)",
     responses=ERRORS,
 )
 def search_by_color(
@@ -34,18 +60,37 @@ def search_by_color(
     min: float = Query(0.05, ge=0.0, le=1.0, description="Fracción mínima de píxeles del color"),
 ):
     rgb = _parse_hex(hex)
-    matches = album.search_by_color(rgb, min)
-    return [ColorMatchOut(photo=_photo_out(entry), fraction=fraction) for entry, fraction in matches]
+    matches = []
+    for item in _catalog():
+        fraction = descriptors.color_fraction(_read(item), rgb)
+        if fraction >= min:
+            matches.append((item, float(fraction)))
+    matches.sort(key=lambda pair: pair[1], reverse=True)
+    return [ColorMatchOut(photo=_match_out(item), fraction=fraction) for item, fraction in matches]
 
 
 @router.get(
     "/similar/{photo_id}",
     response_model=list[SimilarMatchOut],
-    summary="Buscar fotos parecidas a una del álbum (distancia de histograma)",
+    summary="Buscar fotos parecidas a una del álbum en todo el almacenamiento",
     responses={404: {"model": ErrorOut}, **ERRORS},
 )
 def search_similar(photo_id: str):
-    if album.get(photo_id) is None:
+    query_entry = album.get(photo_id)
+    if query_entry is None:
         raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
-    matches = album.search_similar(photo_id)
-    return [SimilarMatchOut(photo=_photo_out(entry), distance=distance) for entry, distance in matches]
+
+    items = _catalog()
+    # La referencia es siempre el original; sus restauraciones y variantes retro
+    # son imágenes distintas y sí pueden aparecer entre las parecidas.
+    query = next(item for item in items if item["kind"] == ORIGINAL and item["id"] == photo_id)
+    query_hist = descriptors.color_histogram(_read(query))
+
+    results = []
+    for item in items:
+        if item["kind"] == ORIGINAL and item["id"] == photo_id:
+            continue
+        distance = descriptors.histogram_distance(query_hist, descriptors.color_histogram(_read(item)))
+        results.append((item, float(distance)))
+    results.sort(key=lambda pair: pair[1])
+    return [SimilarMatchOut(photo=_match_out(item), distance=distance) for item, distance in results]

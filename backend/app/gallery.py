@@ -171,3 +171,27 @@ class Gallery:
 
     def all(self) -> list[dict]:
         return self._load()
+
+    def all_with_legacy(self, album_entries: list[dict]) -> list[dict]:
+        """La galería completa, incluidas las restauraciones viejas guardadas en photos/."""
+        saved = {entry.get("source_id") for entry in self._load() if entry.get("kind") == RESTORED}
+        legacy = []
+        for entry in album_entries:
+            if not entry.get("restored") or entry["id"] in saved:
+                continue
+            path = self.storage_dir / "photos" / f"{entry['id']}_restored.png"
+            if not path.exists():
+                continue
+            legacy.append(
+                {
+                    "id": entry["id"],
+                    "kind": RESTORED,
+                    "folder": "photos",
+                    "filename": path.name,
+                    "width": entry["width"],
+                    "height": entry["height"],
+                    "created": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat(timespec="seconds"),
+                    "source_id": entry["id"],
+                }
+            )
+        return self._load() + legacy

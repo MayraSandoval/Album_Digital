@@ -31,10 +31,13 @@ def _png_rotada(image: np.ndarray, orientation: int = 6) -> bytes:
 
 
 def _clear_album(client):
-    """Deja el álbum vacío: las búsquedas se prueban con estado controlado."""
+    """Deja el álbum y la galería vacíos: las búsquedas se prueban con estado controlado."""
     for photo in client.get("/api/photos").json():
         client.delete(f"/api/photos/{photo['id']}")
+    for item in client.get("/api/gallery").json():
+        client.delete(f"/api/gallery/{item['kind']}/{item['id']}")
     assert client.get("/api/photos").json() == []
+    assert client.get("/api/gallery").json() == []
 
 
 def _upload(client, image: np.ndarray) -> dict:
@@ -455,6 +458,37 @@ def test_buscar_parecidas(client):
     assert len(matches) == 2, "deberían quedar exactamente dos fotos para comparar"
     assert matches[0]["photo"]["id"] == near_id
     assert matches[0]["distance"] < matches[1]["distance"]
+
+
+def test_buscar_por_color_incluye_la_galeria(client):
+    _clear_album(client)
+    red_id = _upload(client, synth.solid(rgb=(180, 25, 25)))["id"]
+    restored = client.post(f"/api/photos/{red_id}/restore")
+    assert restored.status_code == 200, restored.text
+
+    response = client.get("/api/search/color", params={"hex": "B41919", "min": 0.5})
+    assert response.status_code == 200, response.text
+    folders = {(match["photo"]["kind"], match["photo"]["url"].split("/")[2]) for match in response.json()}
+    assert ("original", "photos") in folders
+    assert ("restored", "restored") in folders
+
+
+def test_buscar_parecidas_recorre_las_carpetas(client):
+    _clear_album(client)
+    original_id = _upload(client, synth.photo(seed=77))["id"]
+    assert client.post(f"/api/photos/{original_id}/restore").status_code == 200
+    retro = client.post(f"/api/photos/{original_id}/retro", data={"palette": "gameboy"})
+    assert retro.status_code == 200, retro.text
+    image, _ = synth.paper_on_table()
+    scanned = client.post("/api/scan", files={"file": ("mesa.png", _png(image), "image/png")})
+    assert scanned.status_code == 200, scanned.text
+
+    response = client.get(f"/api/search/similar/{original_id}")
+    assert response.status_code == 200, response.text
+    matches = response.json()
+    assert {match["photo"]["kind"] for match in matches} == {"scanned", "restored", "retro"}
+    for match in matches:
+        assert match["photo"]["url"].startswith(f"/media/{match['photo']['kind']}/")
 
 
 def test_digitalizar_guarda_en_su_carpeta(client):

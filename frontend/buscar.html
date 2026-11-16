@@ -78,7 +78,7 @@
             <h1 class="mt-2 text-3xl font-semibold text-white sm:text-4xl">Buscar en el álbum</h1>
             <p class="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
                 Encontrá fotos por su color dominante o por parecido visual con otra del álbum.
-                La búsqueda usa histogramas HSV y el hash perceptual.
+                Busca en originales, digitalizadas, restauradas y retro.
             </p>
             <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
                 <span class="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1">
@@ -86,7 +86,7 @@
                     <span id="album-count">Cargando álbum…</span>
                 </span>
                 <span aria-hidden="true">·</span>
-                <span>Los resultados salen de <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">storage/photos/</code></span>
+                <span>Los resultados salen de <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">photos/</code>, <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">scanned/</code>, <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">restored/</code> y <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">retro/</code></span>
             </div>
         </section>
 
@@ -241,7 +241,7 @@
     <footer class="mt-10 border-t border-neutral-800">
         <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-6 text-[11px] text-neutral-600 sm:flex-row sm:px-6">
             <span>Álbum Digital — Trabajo Final Integrador de Procesamiento Digital de Imágenes</span>
-            <span>Los resultados abren la foto original del álbum</span>
+            <span>Los resultados abren la imagen en tamaño completo</span>
         </div>
     </footer>
 
@@ -256,6 +256,13 @@
             { name: 'Violeta', value: '#8B5CF6' },
             { name: 'Rosa', value: '#EC4899' }
         ];
+
+        const KIND_STYLES = {
+            original: { label: 'Original', badge: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' },
+            scanned: { label: 'Digitalizada', badge: 'border-indigo-500/30 bg-indigo-500/15 text-indigo-300' },
+            restored: { label: 'Restaurada', badge: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300' },
+            retro: { label: 'Retro', badge: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300' }
+        };
 
         const state = {
             mode: 'color',
@@ -547,9 +554,8 @@
 
             const meta = el('div', 'flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-neutral-500');
             meta.append(el('span', '', `${formatNumber(photo.width)} × ${formatNumber(photo.height)} px`));
-            if (photo.restored) {
-                meta.append(el('span', 'rounded border border-yellow-500/30 bg-yellow-500/10 px-1.5 py-0.5 text-[10px] font-medium text-yellow-300', 'Con restauración'));
-            }
+            const kind = KIND_STYLES[photo.kind] || KIND_STYLES.original;
+            meta.append(el('span', `rounded border px-1.5 py-0.5 text-[10px] font-medium ${kind.badge}`, kind.label));
             info.append(topRow, meta);
 
             if (mode === 'color') {
@@ -593,7 +599,10 @@
             els.albumCount.textContent = 'Cargando álbum…';
 
             try {
-                const photos = await fetchJson('/api/photos');
+                const [photos, galleryItems] = await Promise.all([
+                    fetchJson('/api/photos'),
+                    fetchJson('/api/gallery').catch(() => [])
+                ]);
                 state.photos = photos;
 
                 if (clearSelection) {
@@ -602,9 +611,10 @@
                     state.selectedId = null;
                 }
 
-                els.albumCount.textContent = photos.length === 0
+                const total = photos.length + galleryItems.length;
+                els.albumCount.textContent = total === 0
                     ? 'Álbum vacío'
-                    : (photos.length === 1 ? '1 foto en el álbum' : `${photos.length} fotos en el álbum`);
+                    : `${photos.length} originales · ${galleryItems.length} en la galería`;
 
                 renderPicker();
                 els.picker.classList.toggle('hidden', photos.length === 0);
@@ -651,7 +661,7 @@
                 if (currentRequest !== requestId) return;
 
                 if (data.length === 0) {
-                    showEmpty('No hay fotos con ese color', `Ninguna foto del álbum tiene al menos ${minPercent}% de píxeles de ${hex}. Probá con otro color o bajá el mínimo.`);
+                    showEmpty('No hay fotos con ese color', `Ninguna imagen de storage/ tiene al menos ${minPercent}% de píxeles de ${hex}. Probá con otro color o bajá el mínimo.`);
                     return;
                 }
                 renderResults(data, 'color');
@@ -680,7 +690,7 @@
                 if (currentRequest !== requestId) return;
 
                 if (data.length === 0) {
-                    showEmpty('No hay otras fotos para comparar', 'Subí al menos otra foto al álbum desde el estudio y volvé a intentar.');
+                    showEmpty('No hay otras fotos para comparar', 'Subí otra foto al álbum o generá una digitalización, restauración o retro en el estudio y volvé a intentar.');
                     return;
                 }
                 renderResults(data, 'similar');

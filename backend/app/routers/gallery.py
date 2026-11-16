@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response
@@ -27,39 +26,13 @@ def _item_out(entry: dict) -> GalleryItemOut:
     )
 
 
-def _legacy_restored() -> list[dict]:
-    """Restauraciones anteriores a storage/restored/: el PNG quedó en photos/."""
-    saved_sources = {e.get("source_id") for e in gallery.all() if e.get("kind") == RESTORED}
-    items = []
-    for entry in album.all():
-        if not entry.get("restored") or entry["id"] in saved_sources:
-            continue
-        path = PHOTOS_DIR / f"{entry['id']}_restored.png"
-        if not path.exists():
-            continue
-        created = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
-        items.append(
-            {
-                "id": entry["id"],
-                "kind": RESTORED,
-                "folder": "photos",
-                "filename": path.name,
-                "width": entry["width"],
-                "height": entry["height"],
-                "created": created,
-                "source_id": entry["id"],
-            }
-        )
-    return items
-
-
 @router.get(
     "",
     response_model=list[GalleryItemOut],
     summary="Galería: fotos digitalizadas, restauradas y con estilo retro",
 )
 def list_gallery():
-    items = [_item_out(entry) for entry in gallery.all() + _legacy_restored()]
+    items = [_item_out(entry) for entry in gallery.all_with_legacy(album.all())]
     return sorted(items, key=lambda item: item.created, reverse=True)
 
 

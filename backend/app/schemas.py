@@ -195,13 +195,25 @@ class QualityOut(BaseModel):
     noisy: bool
 
 
+class SearchPhotoOut(BaseModel):
+    """Una imagen de storage/, sin importar en qué carpeta viva."""
+
+    id: str
+    kind: Literal["original", "scanned", "restored", "retro"]
+    width: int
+    height: int
+    created: str
+    url: str = Field(description="/media/<carpeta>/<archivo>.png")
+    source_id: str | None = None
+
+
 class ColorMatchOut(BaseModel):
-    photo: PhotoOut
+    photo: SearchPhotoOut
     fraction: float
 
 
 class SimilarMatchOut(BaseModel):
-    photo: PhotoOut
+    photo: SearchPhotoOut
     distance: float
 
 
