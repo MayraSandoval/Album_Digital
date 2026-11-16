@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMAS · Buscar — Álbum Digital</title>
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    <meta name="theme-color" content="#0b0b12">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css">
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #171717; }
+        ::-webkit-scrollbar-thumb { background: #404040; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #525252; }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch {
+            border: 1px solid #404040;
+            border-radius: 0.375rem;
+        }
+        input[type="color"]::-moz-color-swatch {
+            border: 1px solid #404040;
+            border-radius: 0.375rem;
+        }
+
+        .mode-tab { color: #a3a3a3; }
+        .mode-tab:hover { color: #e5e5e5; }
+        .mode-tab[aria-selected="true"] {
+            background-color: #262626;
+            color: #fff;
+            box-shadow: inset 0 0 0 1px #404040;
+        }
+
+        .photo-option[aria-pressed="true"] {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-neutral-900 page-ambient text-neutral-200 font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="app-header sticky top-0 z-30 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur">
+        <div class="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+            <a href="/" class="brand-lockup group" aria-label="BMAS · Álbum Digital">
+                <img src="/assets/logo-bmas.png" alt="" class="brand-logo">
+                <span class="min-w-0">
+                    <span class="brand-name">BMAS</span>
+                    <span class="brand-sub">Álbum digital · Buscar</span>
+                </span>
+            </a>
+            <nav class="flex items-center gap-2 text-xs font-medium">
+                <button id="btn-refresh" type="button" aria-label="Actualizar álbum" title="Actualizar álbum" class="inline-flex items-center gap-2 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-neutral-400 transition-colors hover:border-neutral-700 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 3v6h-6"/></svg>
+                    <span class="hidden sm:inline">Actualizar</span>
+                </button>
+                <a href="/galeria.html" class="inline-flex items-center gap-2 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-neutral-400 transition-colors hover:border-neutral-700 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    <span class="hidden sm:inline">Galería</span>
+                </a>
+                <a href="/album.html" class="inline-flex items-center gap-2 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-neutral-400 transition-colors hover:border-neutral-700 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                    <span class="hidden sm:inline">Álbum</span>
+                </a>
+                <a href="/" class="inline-flex items-center gap-2 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-neutral-200 transition-colors hover:bg-neutral-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Estudio
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+
+        <!-- Título -->
+        <section class="mb-8">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-400">Descriptores</p>
+            <h1 class="mt-2 text-3xl font-semibold text-white sm:text-4xl">Buscar en el álbum</h1>
+            <p class="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
+                Encontrá fotos por su color dominante o por parecido visual con otra del álbum.
+                Busca en originales, digitalizadas, restauradas y retro.
+            </p>
+            <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500">
+                <span class="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-950 px-2.5 py-1">
+                    <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                    <span id="album-count">Cargando álbum…</span>
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Los resultados salen de <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">photos/</code>, <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">scanned/</code>, <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">restored/</code> y <code class="rounded bg-neutral-800 px-1.5 py-0.5 text-neutral-300">retro/</code></span>
+            </div>
+        </section>
+
+        <!-- Error -->
+        <div id="alert" class="mb-8 hidden flex flex-col justify-between gap-3 rounded-xl border border-red-800 bg-red-950/60 px-4 py-3 sm:flex-row sm:items-center">
+            <div class="flex items-center gap-3 text-sm text-red-100">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-red-400"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                <span id="alert-text">No se pudo completar la búsqueda.</span>
+            </div>
+            <button id="alert-retry" type="button" class="shrink-0 rounded-md border border-red-700 bg-red-900/60 px-3 py-1.5 text-xs font-medium text-red-100 transition-colors hover:bg-red-900">Reintentar</button>
+        </div>
+
+        <div class="grid items-start gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+
+            <!-- Panel de búsqueda -->
+            <aside class="self-start lg:sticky lg:top-20">
+                <div class="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950/60">
+                    <div class="border-b border-neutral-800 p-2">
+                        <div role="tablist" aria-label="Modo de búsqueda" class="grid grid-cols-2 gap-1 rounded-lg bg-neutral-900 p-1">
+                            <button id="tab-color" type="button" role="tab" aria-selected="true" aria-controls="panel-color" tabindex="0" data-mode="color" class="mode-tab inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                                Por color
+                            </button>
+                            <button id="tab-similar" type="button" role="tab" aria-selected="false" aria-controls="panel-similar" tabindex="-1" data-mode="similar" class="mode-tab inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                                Parecidas
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4 sm:p-5">
+                        <!-- Modo color -->
+                        <div id="panel-color" role="tabpanel" aria-labelledby="tab-color">
+                            <label for="hex-input" class="block text-[11px] font-medium uppercase tracking-wide text-neutral-500">Color a buscar</label>
+                            <div class="mt-2 flex items-stretch gap-2">
+                                <input id="color-input" type="color" value="#c81e1e" aria-label="Elegir color" class="h-11 w-14 shrink-0 cursor-pointer rounded-lg border border-neutral-700 bg-neutral-900 p-1">
+                                <input id="hex-input" type="text" value="#C81E1E" maxlength="7" spellcheck="false" autocomplete="off" aria-describedby="color-help color-error" class="min-w-0 flex-1 rounded-lg border border-neutral-800 bg-neutral-900 px-3 font-mono text-sm uppercase text-neutral-100 placeholder-neutral-600 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            </div>
+                            <p id="color-error" class="mt-2 hidden text-[11px] text-red-400">Escribí un color válido, por ejemplo #C81E1E.</p>
+
+                            <div class="mt-3">
+                                <span class="text-[11px] text-neutral-500">Colores rápidos</span>
+                                <div id="swatches" class="mt-2 flex flex-wrap gap-2"></div>
+                            </div>
+
+                            <div class="mt-5">
+                                <div class="flex items-center justify-between gap-2 text-[11px]">
+                                    <label for="min-range" class="font-medium uppercase tracking-wide text-neutral-500">Mínimo de píxeles</label>
+                                    <output id="min-value" for="min-range" class="font-mono text-indigo-300">5%</output>
+                                </div>
+                                <input id="min-range" type="range" min="0" max="100" step="1" value="5" class="mt-2 w-full accent-indigo-500">
+                                <p id="color-help" class="mt-1 text-[11px] leading-relaxed text-neutral-500">Cuentan los píxeles con tono parecido (±12°) y saturación/brillo suficientes; los grises se ignoran.</p>
+                            </div>
+
+                            <button id="btn-search-color" type="button" class="btn-brand mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-neutral-950">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                Buscar por color
+                            </button>
+                        </div>
+
+                        <!-- Modo parecidas -->
+                        <div id="panel-similar" role="tabpanel" aria-labelledby="tab-similar" class="hidden">
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-neutral-500">Foto de referencia</p>
+                            <div id="picker-loading" class="mt-2 grid grid-cols-3 gap-2">
+                                <div class="aspect-square animate-pulse rounded-lg bg-neutral-800/60"></div>
+                                <div class="aspect-square animate-pulse rounded-lg bg-neutral-800/60"></div>
+                                <div class="aspect-square animate-pulse rounded-lg bg-neutral-800/60"></div>
+                                <div class="aspect-square animate-pulse rounded-lg bg-neutral-800/60"></div>
+                                <div class="aspect-square animate-pulse rounded-lg bg-neutral-800/60"></div>
+                                <div class="aspect-square animate-pulse rounded-lg bg-neutral-800/60"></div>
+                            </div>
+                            <div id="picker" class="mt-2 hidden max-h-64 grid grid-cols-3 gap-2 overflow-y-auto pr-1"></div>
+                            <div id="picker-empty" class="mt-2 hidden rounded-lg border border-dashed border-neutral-800 bg-neutral-900/40 px-4 py-6 text-center">
+                                <p id="picker-empty-title" class="text-xs text-neutral-400">Todavía no hay fotos en el álbum.</p>
+                                <a id="picker-empty-link" href="/" class="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-indigo-400 transition-colors hover:text-indigo-300">
+                                    Subir una foto
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                </a>
+                            </div>
+
+                            <p id="selected-label" class="mt-3 truncate text-[11px] text-neutral-500">Ninguna foto seleccionada.</p>
+                            <button id="btn-search-similar" type="button" disabled class="btn-brand mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-neutral-950">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                                Buscar parecidas
+                            </button>
+                            <p class="mt-2 text-[11px] leading-relaxed text-neutral-500">Distancia L1 entre histogramas HSV: 0 = idénticas y los valores más chicos son las más parecidas.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="mt-3 px-1 text-[11px] leading-relaxed text-neutral-500">
+                    <span class="text-neutral-300">Cómo funciona:</span> el color se mide en HSV y la similitud compara los histogramas de los tres canales.
+                    Los duplicados se avisan solos al subir una foto al estudio.
+                </p>
+            </aside>
+
+            <!-- Resultados -->
+            <section id="results-region" aria-live="polite" class="min-w-0">
+                <div class="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-neutral-800 pb-3">
+                    <div class="min-w-0">
+                        <h2 id="results-title" class="break-words text-lg font-semibold text-white">Resultados</h2>
+                        <p id="results-subtitle" class="mt-1 text-xs text-neutral-500">Elegí un modo y lanzá la búsqueda.</p>
+                    </div>
+                    <span id="results-count" class="hidden rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2.5 py-1 text-xs font-mono text-indigo-300">0 resultados</span>
+                </div>
+
+                <div id="results-idle" class="rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-14 text-center">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-neutral-800 bg-neutral-900 text-neutral-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    </div>
+                    <p class="mt-4 text-sm font-medium text-neutral-300">Buscá dentro de tu álbum</p>
+                    <p class="mx-auto mt-2 max-w-md text-xs leading-relaxed text-neutral-500">Elegí un color para ver qué fotos lo contienen, o una foto para encontrar las más parecidas por su histograma de color.</p>
+                </div>
+
+                <div id="results-loading" class="hidden grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <div class="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950/60">
+                        <div class="aspect-[4/3] animate-pulse bg-neutral-800/60"></div>
+                        <div class="space-y-2 p-3">
+                            <div class="h-3 w-2/3 animate-pulse rounded bg-neutral-800"></div>
+                            <div class="h-2 w-1/2 animate-pulse rounded bg-neutral-800"></div>
+                        </div>
+                    </div>
+                    <div class="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950/60">
+                        <div class="aspect-[4/3] animate-pulse bg-neutral-800/60"></div>
+                        <div class="space-y-2 p-3">
+                            <div class="h-3 w-2/3 animate-pulse rounded bg-neutral-800"></div>
+                            <div class="h-2 w-1/2 animate-pulse rounded bg-neutral-800"></div>
+                        </div>
+                    </div>
+                    <div class="overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950/60">
+                        <div class="aspect-[4/3] animate-pulse bg-neutral-800/60"></div>
+                        <div class="space-y-2 p-3">
+                            <div class="h-3 w-2/3 animate-pulse rounded bg-neutral-800"></div>
+                            <div class="h-2 w-1/2 animate-pulse rounded bg-neutral-800"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="results-grid" class="hidden grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"></div>
+
+                <div id="results-empty" class="hidden rounded-2xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-12 text-center">
+                    <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-neutral-800 bg-neutral-900 text-neutral-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>
+                    </div>
+                    <p id="empty-title" class="mt-4 text-sm font-medium text-neutral-300">Sin resultados</p>
+                    <p id="empty-text" class="mx-auto mt-2 max-w-md text-xs leading-relaxed text-neutral-500"></p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="mt-10 border-t border-neutral-800">
+        <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-6 text-[11px] text-neutral-600 sm:flex-row sm:px-6">
+            <span>Álbum Digital — Trabajo Final Integrador de Procesamiento Digital de Imágenes</span>
+            <span>Los resultados abren la imagen en tamaño completo</span>
+        </div>
+    </footer>
+
+    <script>
+        const SWATCHES = [
+            { name: 'Rojo', value: '#C81E1E' },
+            { name: 'Naranja', value: '#F97316' },
+            { name: 'Amarillo', value: '#EAB308' },
+            { name: 'Verde', value: '#22C55E' },
+            { name: 'Cian', value: '#06B6D4' },
+            { name: 'Azul', value: '#3B82F6' },
+            { name: 'Violeta', value: '#8B5CF6' },
+            { name: 'Rosa', value: '#EC4899' }
+        ];
+
+        const KIND_STYLES = {
+            original: { label: 'Original', badge: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' },
+            scanned: { label: 'Digitalizada', badge: 'border-indigo-500/30 bg-indigo-500/15 text-indigo-300' },
+            restored: { label: 'Restaurada', badge: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300' },
+            retro: { label: 'Retro', badge: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-300' }
+        };
+
+        const state = {
+            mode: 'color',
+            photos: [],
+            selectedId: null,
+            busy: false
+        };
+
+        let requestId = 0;
+        let retryAction = null;
+
+        const els = {
+            tabColor: document.getElementById('tab-color'),
+            tabSimilar: document.getElementById('tab-similar'),
+            panelColor: document.getElementById('panel-color'),
+            panelSimilar: document.getElementById('panel-similar'),
+            colorInput: document.getElementById('color-input'),
+            hexInput: document.getElementById('hex-input'),
+            colorError: document.getElementById('color-error'),
+            swatches: document.getElementById('swatches'),
+            minRange: document.getElementById('min-range'),
+            minValue: document.getElementById('min-value'),
+            btnColor: document.getElementById('btn-search-color'),
+            btnSimilar: document.getElementById('btn-search-similar'),
+            btnRefresh: document.getElementById('btn-refresh'),
+            albumCount: document.getElementById('album-count'),
+            picker: document.getElementById('picker'),
+            pickerLoading: document.getElementById('picker-loading'),
+            pickerEmpty: document.getElementById('picker-empty'),
+            pickerEmptyTitle: document.getElementById('picker-empty-title'),
+            pickerEmptyLink: document.getElementById('picker-empty-link'),
+            selectedLabel: document.getElementById('selected-label'),
+            alert: document.getElementById('alert'),
+            alertText: document.getElementById('alert-text'),
+            alertRetry: document.getElementById('alert-retry'),
+            resultsRegion: document.getElementById('results-region'),
+            resultsTitle: document.getElementById('results-title'),
+            resultsSubtitle: document.getElementById('results-subtitle'),
+            resultsCount: document.getElementById('results-count'),
+            resultsIdle: document.getElementById('results-idle'),
+            resultsLoading: document.getElementById('results-loading'),
+            resultsGrid: document.getElementById('results-grid'),
+            resultsEmpty: document.getElementById('results-empty'),
+            emptyTitle: document.getElementById('empty-title'),
+            emptyText: document.getElementById('empty-text')
+        };
+
+        function el(tag, className, text) {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        }
+
+        function formatNumber(value) {
+            return new Intl.NumberFormat('es-AR').format(value);
+        }
+
+        function normalizeHex(raw) {
+            const value = String(raw).trim().replace(/^#/, '');
+            return /^[0-9a-fA-F]{6}$/.test(value) ? `#${value.toUpperCase()}` : null;
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                let detail = `Error ${response.status}`;
+                try {
+                    const body = await response.json();
+                    if (typeof body.detail === 'string') detail = body.detail;
+                } catch (_) {}
+                throw new Error(detail);
+            }
+            return response.json();
+        }
+
+        function applyColor(raw) {
+            const hex = normalizeHex(raw);
+            if (!hex) return false;
+            els.colorInput.value = hex.toLowerCase();
+            els.hexInput.value = hex;
+            els.colorError.classList.add('hidden');
+            els.hexInput.setAttribute('aria-invalid', 'false');
+            return true;
+        }
+
+        function showColorError() {
+            els.colorError.classList.remove('hidden');
+            els.hexInput.setAttribute('aria-invalid', 'true');
+            els.hexInput.focus();
+            els.hexInput.select();
+        }
+
+        function buildSwatches() {
+            for (const color of SWATCHES) {
+                const button = el('button', 'h-7 w-7 rounded-full border border-white/20 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-neutral-950');
+                button.type = 'button';
+                button.style.backgroundColor = color.value;
+                button.title = color.name;
+                button.setAttribute('aria-label', `Usar ${color.name.toLowerCase()} ${color.value}`);
+                button.addEventListener('click', () => applyColor(color.value));
+                els.swatches.append(button);
+            }
+        }
+
+        function updateMinLabel() {
+            els.minValue.textContent = `${els.minRange.value}%`;
+        }
+
+        function updateSimilarButton() {
+            els.btnSimilar.disabled = state.busy || !state.selectedId;
+        }
+
+        function setBusy(busy) {
+            state.busy = busy;
+            els.btnColor.disabled = busy;
+            els.btnRefresh.disabled = busy;
+            updateSimilarButton();
+            els.resultsRegion.setAttribute('aria-busy', String(busy));
+        }
+
+        function showAlert(message, retry = null) {
+            els.alertText.textContent = message;
+            els.alert.classList.remove('hidden');
+            retryAction = retry;
+            els.alertRetry.classList.toggle('hidden', !retry);
+        }
+
+        function hideAlert() {
+            els.alert.classList.add('hidden');
+            retryAction = null;
+        }
+
+        function setResultsHeader(title, subtitle) {
+            els.resultsTitle.textContent = title;
+            els.resultsSubtitle.textContent = subtitle;
+        }
+
+        function setResultsCount(count) {
+            els.resultsCount.textContent = count === 1 ? '1 resultado' : `${count} resultados`;
+            els.resultsCount.classList.remove('hidden');
+        }
+
+        function showIdle(message) {
+            els.resultsIdle.classList.remove('hidden');
+            els.resultsLoading.classList.add('hidden');
+            els.resultsGrid.classList.add('hidden');
+            els.resultsEmpty.classList.add('hidden');
+            els.resultsTitle.textContent = 'Resultados';
+            els.resultsSubtitle.textContent = message || 'Elegí un modo y lanzá la búsqueda.';
+            els.resultsCount.classList.add('hidden');
+        }
+
+        function showLoading() {
+            els.resultsIdle.classList.add('hidden');
+            els.resultsLoading.classList.remove('hidden');
+            els.resultsGrid.classList.add('hidden');
+            els.resultsEmpty.classList.add('hidden');
+            els.resultsCount.classList.add('hidden');
+        }
+
+        function showEmpty(title, text) {
+            els.resultsIdle.classList.add('hidden');
+            els.resultsLoading.classList.add('hidden');
+            els.resultsGrid.classList.add('hidden');
+            els.resultsEmpty.classList.remove('hidden');
+            els.emptyTitle.textContent = title;
+            els.emptyText.textContent = text;
+            setResultsCount(0);
+        }
+
+        function setMode(mode) {
+            if (state.mode === mode) return;
+            state.mode = mode;
+            requestId += 1;
+            setBusy(false);
+
+            for (const tab of [els.tabColor, els.tabSimilar]) {
+                const active = tab.dataset.mode === mode;
+                tab.setAttribute('aria-selected', String(active));
+                tab.tabIndex = active ? 0 : -1;
+            }
+
+            els.panelColor.classList.toggle('hidden', mode !== 'color');
+            els.panelSimilar.classList.toggle('hidden', mode !== 'similar');
+            hideAlert();
+            showIdle();
+        }
+
+        function handleTabKey(event) {
+            const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End'];
+            if (!keys.includes(event.key)) return;
+            event.preventDefault();
+
+            const tabs = [els.tabColor, els.tabSimilar];
+            let index = tabs.indexOf(event.currentTarget);
+            if (event.key === 'ArrowLeft') index = (index - 1 + tabs.length) % tabs.length;
+            if (event.key === 'ArrowRight') index = (index + 1) % tabs.length;
+            if (event.key === 'Home') index = 0;
+            if (event.key === 'End') index = tabs.length - 1;
+
+            setMode(tabs[index].dataset.mode);
+            tabs[index].focus();
+        }
+
+        function renderPicker() {
+            els.picker.replaceChildren();
+            for (const photo of state.photos) {
+                const button = el('button', 'photo-option group relative aspect-square overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-indigo-400');
+                button.type = 'button';
+                button.dataset.id = photo.id;
+                button.setAttribute('aria-pressed', String(photo.id === state.selectedId));
+                button.setAttribute('aria-label', `Elegir la foto ${photo.id}`);
+                button.title = `Elegir ${photo.id}`;
+
+                const img = el('img', 'h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100');
+                img.src = photo.url;
+                img.alt = `Miniatura de la foto ${photo.id}`;
+                img.loading = 'lazy';
+
+                const caption = el('span', 'absolute inset-x-0 bottom-0 truncate bg-neutral-950/80 px-1.5 py-1 font-mono text-[10px] text-neutral-300', photo.id);
+                button.append(img, caption);
+                button.addEventListener('click', () => selectPhoto(photo.id));
+                els.picker.append(button);
+            }
+        }
+
+        function selectPhoto(id) {
+            state.selectedId = id;
+            for (const button of els.picker.querySelectorAll('button[data-id]')) {
+                button.setAttribute('aria-pressed', String(button.dataset.id === id));
+            }
+            updateSelectedLabel();
+            updateSimilarButton();
+        }
+
+        function updateSelectedLabel() {
+            if (!state.selectedId) {
+                els.selectedLabel.textContent = 'Ninguna foto seleccionada.';
+                return;
+            }
+            const photo = state.photos.find((item) => item.id === state.selectedId);
+            const size = photo ? ` · ${formatNumber(photo.width)} × ${formatNumber(photo.height)} px` : '';
+            els.selectedLabel.textContent = `Foto elegida: ${state.selectedId}${size}`;
+        }
+
+        function createResultCard(match, mode, index) {
+            const photo = match.photo;
+            const card = el('article', 'group flex flex-col overflow-hidden rounded-xl border border-neutral-800 bg-neutral-950/60 transition-colors hover:border-neutral-700');
+
+            const link = el('a', 'relative block aspect-[4/3] overflow-hidden bg-neutral-900');
+            link.href = photo.url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.title = 'Abrir en tamaño completo';
+
+            const img = el('img', 'h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.02]');
+            img.src = photo.url;
+            img.alt = `Foto ${photo.id} de ${photo.width} por ${photo.height} píxeles`;
+            img.loading = 'lazy';
+            img.addEventListener('error', () => {
+                img.remove();
+                link.append(el('div', 'absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-neutral-500', 'No se pudo cargar la imagen'));
+            });
+
+            let scoreBadge;
+            if (mode === 'color') {
+                const percent = `${(match.fraction * 100).toFixed(1)}%`;
+                scoreBadge = el('span', 'absolute right-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/15 px-2 py-1 font-mono text-[10px] font-semibold text-indigo-200 backdrop-blur');
+                scoreBadge.append(el('span', 'h-1.5 w-1.5 rounded-full bg-indigo-400'), document.createTextNode(percent));
+            } else {
+                scoreBadge = el('span', 'absolute right-2 top-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 font-mono text-[10px] font-semibold text-yellow-200 backdrop-blur', `dist. ${match.distance.toFixed(3)}`);
+            }
+            link.append(img, scoreBadge);
+
+            if (index === 0) {
+                link.append(el('span', 'absolute left-2 top-2 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300 backdrop-blur', mode === 'color' ? 'Mayor coincidencia' : 'Más parecida'));
+            }
+
+            const info = el('div', 'flex flex-1 flex-col gap-2 border-t border-neutral-800 p-3');
+
+            const topRow = el('div', 'flex items-center justify-between gap-2');
+            const id = el('span', 'truncate font-mono text-[11px] text-neutral-300', photo.id);
+            const open = el('a', 'inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-indigo-400 transition-colors hover:text-indigo-300', 'Abrir');
+            open.href = photo.url;
+            open.target = '_blank';
+            open.rel = 'noopener';
+            topRow.append(id, open);
+
+            const meta = el('div', 'flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[11px] text-neutral-500');
+            meta.append(el('span', '', `${formatNumber(photo.width)} × ${formatNumber(photo.height)} px`));
+            const kind = KIND_STYLES[photo.kind] || KIND_STYLES.original;
+            meta.append(el('span', `rounded border px-1.5 py-0.5 text-[10px] font-medium ${kind.badge}`, kind.label));
+            info.append(topRow, meta);
+
+            if (mode === 'color') {
+                const score = el('div', 'mt-1');
+                const row = el('div', 'mb-1 flex items-center justify-between gap-2 text-[11px]');
+                row.append(el('span', 'text-neutral-500', 'Píxeles del color'), el('span', 'font-mono text-indigo-300', `${(match.fraction * 100).toFixed(1)}%`));
+                const track = el('div', 'h-1.5 overflow-hidden rounded-full bg-neutral-800');
+                const fill = el('div', 'h-full rounded-full bg-indigo-500');
+                fill.style.width = `${Math.min(100, Math.max(0, match.fraction * 100))}%`;
+                track.append(fill);
+                score.append(row, track);
+                info.append(score);
+            } else {
+                const score = el('div', 'mt-1 flex items-center justify-between rounded-md border border-neutral-800 bg-neutral-900/60 px-2.5 py-1.5 text-[11px]');
+                score.append(el('span', 'text-neutral-500', 'Distancia L1'), el('span', 'font-mono text-yellow-300', match.distance.toFixed(3)));
+                info.append(score);
+            }
+
+            card.append(link, info);
+            return card;
+        }
+
+        function renderResults(data, mode) {
+            els.resultsIdle.classList.add('hidden');
+            els.resultsLoading.classList.add('hidden');
+            els.resultsEmpty.classList.add('hidden');
+            els.resultsGrid.classList.remove('hidden');
+            els.resultsGrid.replaceChildren();
+            data.forEach((match, index) => {
+                els.resultsGrid.append(createResultCard(match, mode, index));
+            });
+            setResultsCount(data.length);
+        }
+
+        async function loadAlbum({ clearSelection = true } = {}) {
+            hideAlert();
+            els.btnRefresh.disabled = true;
+            els.pickerLoading.classList.remove('hidden');
+            els.picker.classList.add('hidden');
+            els.pickerEmpty.classList.add('hidden');
+            els.albumCount.textContent = 'Cargando álbum…';
+
+            try {
+                const [photos, galleryItems] = await Promise.all([
+                    fetchJson('/api/photos'),
+                    fetchJson('/api/gallery').catch(() => [])
+                ]);
+                state.photos = photos;
+
+                if (clearSelection) {
+                    state.selectedId = null;
+                } else if (state.selectedId && !photos.some((photo) => photo.id === state.selectedId)) {
+                    state.selectedId = null;
+                }
+
+                const total = photos.length + galleryItems.length;
+                els.albumCount.textContent = total === 0
+                    ? 'Álbum vacío'
+                    : `${photos.length} originales · ${galleryItems.length} en la galería`;
+
+                renderPicker();
+                els.picker.classList.toggle('hidden', photos.length === 0);
+                els.pickerEmptyTitle.textContent = 'Todavía no hay fotos en el álbum.';
+                els.pickerEmptyLink.classList.remove('hidden');
+                els.pickerEmpty.classList.toggle('hidden', photos.length > 0);
+                updateSelectedLabel();
+                updateSimilarButton();
+            } catch (err) {
+                state.photos = [];
+                state.selectedId = null;
+                els.albumCount.textContent = 'No se pudo cargar el álbum';
+                els.pickerEmptyTitle.textContent = 'No se pudieron cargar las fotos.';
+                els.pickerEmptyLink.classList.add('hidden');
+                els.pickerEmpty.classList.remove('hidden');
+                showAlert(`No se pudo cargar el álbum: ${err.message}`, () => loadAlbum({ clearSelection: true }));
+                updateSelectedLabel();
+                updateSimilarButton();
+            } finally {
+                els.pickerLoading.classList.add('hidden');
+                els.btnRefresh.disabled = state.busy;
+            }
+        }
+
+        async function searchColor() {
+            if (state.busy) return;
+            const hex = normalizeHex(els.hexInput.value);
+            if (!hex) {
+                showColorError();
+                return;
+            }
+
+            applyColor(hex);
+            hideAlert();
+            const minPercent = Number(els.minRange.value);
+            setResultsHeader(`Color ${hex}`, `${minPercent}% mínimo de píxeles · ordenado de mayor a menor`);
+            showLoading();
+            setBusy(true);
+
+            const currentRequest = ++requestId;
+            try {
+                const params = new URLSearchParams({ hex: hex.slice(1), min: String(minPercent / 100) });
+                const data = await fetchJson(`/api/search/color?${params.toString()}`);
+                if (currentRequest !== requestId) return;
+
+                if (data.length === 0) {
+                    showEmpty('No hay fotos con ese color', `Ninguna imagen de storage/ tiene al menos ${minPercent}% de píxeles de ${hex}. Probá con otro color o bajá el mínimo.`);
+                    return;
+                }
+                renderResults(data, 'color');
+            } catch (err) {
+                if (currentRequest !== requestId) return;
+                showAlert(`No se pudo buscar por color: ${err.message}`, searchColor);
+                showIdle('La búsqueda no se completó. Probá de nuevo.');
+            } finally {
+                if (currentRequest === requestId) setBusy(false);
+            }
+        }
+
+        async function searchSimilar() {
+            if (state.busy) return;
+            if (!state.selectedId) return;
+
+            const id = state.selectedId;
+            hideAlert();
+            setResultsHeader(`Parecidas a ${id}`, 'Distancia L1 entre histogramas HSV · menor primero');
+            showLoading();
+            setBusy(true);
+
+            const currentRequest = ++requestId;
+            try {
+                const data = await fetchJson(`/api/search/similar/${encodeURIComponent(id)}`);
+                if (currentRequest !== requestId) return;
+
+                if (data.length === 0) {
+                    showEmpty('No hay otras fotos para comparar', 'Subí otra foto al álbum o generá una digitalización, restauración o retro en el estudio y volvé a intentar.');
+                    return;
+                }
+                renderResults(data, 'similar');
+            } catch (err) {
+                if (currentRequest !== requestId) return;
+                showAlert(`No se pudo buscar parecidas: ${err.message}`, searchSimilar);
+                showIdle('La búsqueda no se completó. Probá de nuevo.');
+            } finally {
+                if (currentRequest === requestId) setBusy(false);
+            }
+        }
+
+        async function refreshAlbum() {
+            if (state.busy) return;
+            requestId += 1;
+            showIdle('Álbum actualizado. Elegí un color o una foto para buscar.');
+            await loadAlbum({ clearSelection: true });
+        }
+
+        els.tabColor.addEventListener('click', () => setMode('color'));
+        els.tabSimilar.addEventListener('click', () => setMode('similar'));
+        els.tabColor.addEventListener('keydown', handleTabKey);
+        els.tabSimilar.addEventListener('keydown', handleTabKey);
+        els.btnColor.addEventListener('click', searchColor);
+        els.btnSimilar.addEventListener('click', searchSimilar);
+        els.btnRefresh.addEventListener('click', refreshAlbum);
+
+        els.colorInput.addEventListener('input', () => {
+            els.hexInput.value = els.colorInput.value.toUpperCase();
+            els.colorError.classList.add('hidden');
+            els.hexInput.setAttribute('aria-invalid', 'false');
+        });
+        els.hexInput.addEventListener('input', () => {
+            const hex = normalizeHex(els.hexInput.value);
+            if (!hex) return;
+            els.colorInput.value = hex.toLowerCase();
+            els.colorError.classList.add('hidden');
+            els.hexInput.setAttribute('aria-invalid', 'false');
+        });
+        els.hexInput.addEventListener('blur', () => {
+            const hex = normalizeHex(els.hexInput.value);
+            if (hex) els.hexInput.value = hex;
+        });
+        els.hexInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                searchColor();
+            }
+        });
+        els.minRange.addEventListener('input', updateMinLabel);
+        els.alertRetry.addEventListener('click', () => {
+            const action = retryAction;
+            hideAlert();
+            if (action) action();
+        });
+
+        buildSwatches();
+        applyColor('#C81E1E');
+        updateMinLabel();
+        showIdle();
+        loadAlbum({ clearSelection: true });
+    </script>
+</body>
+</html>

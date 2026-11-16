@@ -1,8 +1,7 @@
 """Tests para la parte 3: los pasos de restauración (album/restoration.py).
 
 Los primeros tests prueban la mecánica del pipeline. Los
-últimos prueban el EFECTO de cada paso: fallan mientras el paso lance
-NotImplementedYet (el pipeline lo saltea y la foto queda igual).
+últimos prueban el EFECTO de cada paso.
 """
 
 from __future__ import annotations
@@ -11,19 +10,33 @@ import numpy as np
 
 from album import RestorationOptions, RestorationPipeline, Step
 from album.exceptions import NotImplementedYet
-from album.restoration import ContrastStep, DenoiseStep, ScratchRepairStep
+from album.quality import diagnose
+from album.restoration import (
+    ContrastStep,
+    DenoiseStep,
+    ScratchRepairStep,
+    SharpenStep,
+    WhiteBalanceStep,
+)
 from tests import synth
 
 IMG = synth.photo()
 PIPELINE = RestorationPipeline()
 
 
-# ------------------------------------------------------- mecánica (dada)
+# ------------------------------------------------------- mecánica
 
 
 def test_pasos_pendientes_se_saltean():
-    trace = PIPELINE.run(IMG)
-    assert [r.status for r in trace.results] == ["pending", "pending", "pending"]
+    class Pending(Step):
+        name = "pending"
+        label = "Pendiente"
+
+        def apply(self, image):
+            raise NotImplementedYet("todavía no")
+
+    trace = PIPELINE.run(IMG, steps=[Pending()])
+    assert [r.status for r in trace.results] == ["pending"]
     assert np.array_equal(trace.image, IMG)
     assert trace.complete is False
 
@@ -94,6 +107,18 @@ def test_scratch_repair_tapa_las_rayas():
     assert after < before - 50, f"la raya sigue clara: {before:.0f} → {after:.0f}"
 
 
+def test_scratch_no_borra_los_detalles_chicos():
+    base = synth.photo(seed=3)
+    damaged = base.copy()
+    damaged[50:52, 20:220] = 255    # raya larga: hay que taparla
+    damaged[120:126, 160:166] = 255  # brillo chico: es un ojo, no una raya
+
+    restored = ScratchRepairStep(min_contrast=0).apply(damaged)
+
+    assert restored[49:53, 20:220].mean() < 150, "la raya larga sigue ahí"
+    assert restored[120:126, 160:166].mean() > 240, "el paso borró un detalle chico"
+
+
 def test_contrast_step_amplia_el_rango():
     flat = synth.low_contrast(IMG)
     before = flat.mean(axis=2).std()
@@ -102,8 +127,64 @@ def test_contrast_step_amplia_el_rango():
     assert after > before * 1.3, f"el contraste no subió: {before:.1f} → {after:.1f}"
 
 
+def test_denoise_mediana_respeta_la_ventana():
+    damaged = synth.salt_pepper(IMG, amount=0.05)
+    small = DenoiseStep(method="median", kernel_size=3).apply(damaged)
+    big = DenoiseStep(method="median", kernel_size=9).apply(damaged)
+    assert not np.array_equal(small, big)
+
+
+def test_scratch_respeta_el_metodo_de_relleno():
+    damaged = synth.scratched(IMG)
+    telea = ScratchRepairStep(method="telea").apply(damaged)
+    ns = ScratchRepairStep(method="ns").apply(damaged)
+    assert not np.array_equal(telea, ns)
+
+
+def test_contraste_respeta_el_clip():
+    flat = synth.low_contrast(IMG)
+    soft = ContrastStep(clip_limit=1.0).apply(flat)
+    strong = ContrastStep(clip_limit=6.0).apply(flat)
+    assert not np.array_equal(soft, strong)
+
+
+def test_white_balance_neutraliza_una_dominante():
+    casted = np.clip(IMG.astype(np.float32) * np.array([1.2, 1.0, 0.8]), 0, 255).astype(np.uint8)
+    balanced = WhiteBalanceStep(method="gray-world", stretch=False).apply(casted)
+    means = balanced.reshape(-1, 3).mean(axis=0)
+    assert means.max() - means.min() < 5, f"quedó dominante: {means}"
+
+
+def test_white_patch_lleva_los_blancos_al_maximo():
+    casted = np.clip(IMG.astype(np.float32) * np.array([1.2, 1.0, 0.8]), 0, 255).astype(np.uint8)
+    balanced = WhiteBalanceStep(method="white-patch", stretch=False).apply(casted)
+    highlights = np.percentile(balanced.reshape(-1, 3), 99.5, axis=0)
+    assert np.all(highlights > 245), f"los blancos no llegaron al máximo: {highlights}"
+
+
+def test_estirar_el_histograma_amplia_el_rango():
+    flat = synth.low_contrast(IMG)
+    before = flat.mean(axis=2).std()
+    stretched = WhiteBalanceStep(method="gray-world", stretch=True).apply(flat)
+    after = stretched.mean(axis=2).std()
+    assert after > before * 1.3, f"el rango no se amplió: {before:.1f} → {after:.1f}"
+
+
+def test_sharpen_aumenta_la_nitidez():
+    soft = synth.blurred(IMG, kernel=5)
+    before = diagnose(soft).sharpness
+    sharp = SharpenStep(amount=1.2, sigma=1.5).apply(soft)
+    after = diagnose(sharp).sharpness
+    assert after > before * 2, f"la nitidez no subió: {before:.0f} → {after:.0f}"
+
+
+def test_sharpen_con_amount_cero_no_cambia_nada():
+    assert np.array_equal(SharpenStep(amount=0).apply(IMG), IMG)
+
+
 def test_los_pasos_no_modifican_la_entrada():
-    for step in (DenoiseStep("median"), ScratchRepairStep(), ContrastStep()):
+    steps = (DenoiseStep("median"), ScratchRepairStep(), ContrastStep(), WhiteBalanceStep(), SharpenStep())
+    for step in steps:
         damaged = synth.salt_pepper(synth.scratched(IMG))
         original = damaged.copy()
         try:

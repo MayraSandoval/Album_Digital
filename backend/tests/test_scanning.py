@@ -1,4 +1,4 @@
-"""Tests para la parte 1: Scanner (album/scanning.py)."""
+"""Tests del TODO 1: Scanner (album/scanning.py)."""
 
 from __future__ import annotations
 
@@ -61,3 +61,13 @@ def test_scan_devuelve_la_foto_enderezada(scanner, paper):
 def test_scan_sin_hoja_lanza_document_not_found(scanner):
     with pytest.raises(DocumentNotFound):
         scanner.scan(synth.plain())
+
+
+def test_segunda_pasada_encuentra_la_hoja_sin_canny(scanner, paper, monkeypatch):
+    """Si Canny no cierra el borde (mesa texturada), GrabCut separa la hoja."""
+    image, truth = paper
+    monkeypatch.setattr(scanner, "_edges", lambda gray: np.zeros_like(gray))
+    corners = scanner.detect_corners(image)
+    assert np.allclose(corners, truth, atol=5), (
+        f"esperaba {truth.tolist()}, obtuve {np.asarray(corners).tolist()}"
+    )

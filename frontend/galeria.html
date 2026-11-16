@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMAS · Galería — Álbum Digital</title>
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    <meta name="theme-color" content="#0b0b12">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css">
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #171717; }
+        ::-webkit-scrollbar-thumb { background: #404040; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #525252; }
+    </style>
+</head>
+<body class="min-h-screen bg-neutral-900 page-ambient text-neutral-200 font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="app-header sticky top-0 z-30 bg-neutral-950/95 backdrop-blur border-b border-neutral-800">
+        <div class="max-w-7xl mx-auto h-14 px-4 sm:px-6 flex items-center justify-between gap-4">
+            <a href="/" class="brand-lockup group" aria-label="BMAS · Álbum Digital">
+                <img src="/assets/logo-bmas.png" alt="" class="brand-logo">
+                <span class="min-w-0">
+                    <span class="brand-name">BMAS</span>
+                    <span class="brand-sub">Álbum digital · Galería</span>
+                </span>
+            </a>
+            <nav class="flex items-center gap-2 text-xs font-medium">
+                <button id="btn-refresh" onclick="loadGallery()" aria-label="Actualizar galería" title="Actualizar galería" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 3v6h-6"/></svg>
+                    <span class="hidden sm:inline">Actualizar</span>
+                </button>
+                <a href="/buscar.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <span class="hidden sm:inline">Buscar</span>
+                </a>
+                <a href="/album.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                    <span class="hidden sm:inline">Álbum</span>
+                </a>
+                <a href="/" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-neutral-800 border border-neutral-700 text-neutral-200 hover:bg-neutral-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    Estudio
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+
+        <!-- Título -->
+        <section class="mb-8">
+            <p class="text-[11px] uppercase tracking-[0.2em] text-indigo-400 font-semibold">Tu archivo</p>
+            <h1 class="text-3xl sm:text-4xl font-semibold text-white mt-2">Galería del álbum</h1>
+            <p class="text-sm text-neutral-400 mt-3 max-w-2xl leading-relaxed">
+                Acá quedan las fotos subidas al álbum y las que pasaron por <span class="text-indigo-300">Digitalizar</span>,
+                <span class="text-yellow-300">Restauración</span> y <span class="text-fuchsia-300">Estilo retro</span>,
+                cada grupo guardado en su propia carpeta dentro de
+                <code class="text-neutral-300 bg-neutral-800 px-1.5 py-0.5 rounded text-xs">storage/</code>.
+            </p>
+        </section>
+
+        <!-- Error -->
+        <div id="alert" class="hidden mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-red-800 bg-red-950/60 px-4 py-3">
+            <div class="flex items-center gap-3 text-sm text-red-100">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-400 shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                <span id="alert-text">No se pudo cargar la galería.</span>
+            </div>
+            <button onclick="loadGallery()" class="shrink-0 px-3 py-1.5 rounded-md bg-red-900/60 border border-red-700 text-xs font-medium text-red-100 hover:bg-red-900 transition-colors">Reintentar</button>
+        </div>
+
+        <!-- Cargando -->
+        <div id="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-12">
+            <div class="h-56 rounded-xl bg-neutral-800/60 animate-pulse"></div>
+            <div class="h-56 rounded-xl bg-neutral-800/60 animate-pulse"></div>
+            <div class="h-56 rounded-xl bg-neutral-800/60 animate-pulse"></div>
+            <div class="h-56 rounded-xl bg-neutral-800/60 animate-pulse"></div>
+        </div>
+
+        <!-- Sección: Originales -->
+        <section id="section-originals" class="mb-12 hidden">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4 border-b border-neutral-800 pb-3">
+                <div>
+                    <h2 class="flex items-center gap-2 text-lg font-semibold text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-emerald-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                        Originales
+                        <span id="count-originals" class="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">0</span>
+                    </h2>
+                    <p class="text-xs text-neutral-500 mt-1">Fotos subidas al álbum, tal como llegaron · <code class="text-neutral-400">storage/photos/</code></p>
+                </div>
+            </div>
+            <div id="grid-originals" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="empty-originals" class="hidden rounded-xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-10 text-center">
+                <p class="text-sm text-neutral-400">Todavía no subiste ninguna foto.</p>
+                <a href="/" class="inline-flex items-center gap-2 mt-3 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Ir al estudio a subir una
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </a>
+            </div>
+        </section>
+
+        <!-- Sección: Digitalizadas -->
+        <section id="section-scanned" class="mb-12">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4 border-b border-neutral-800 pb-3">
+                <div>
+                    <h2 class="flex items-center gap-2 text-lg font-semibold text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="m6 12-3 3 3 3"/></svg>
+                        Digitalizadas
+                        <span id="count-scanned" class="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">0</span>
+                    </h2>
+                    <p class="text-xs text-neutral-500 mt-1">Resultados de recortar y enderezar la hoja · <code class="text-neutral-400">storage/scanned/</code></p>
+                </div>
+            </div>
+            <div id="grid-scanned" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="empty-scanned" class="hidden rounded-xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-10 text-center">
+                <p class="text-sm text-neutral-400">Todavía no digitalizaste ninguna foto.</p>
+                <a href="/" class="inline-flex items-center gap-2 mt-3 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Ir al estudio a digitalizar
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </a>
+            </div>
+        </section>
+
+        <!-- Sección: Restauradas -->
+        <section id="section-restored">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4 border-b border-neutral-800 pb-3">
+                <div>
+                    <h2 class="flex items-center gap-2 text-lg font-semibold text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>
+                        Restauradas
+                        <span id="count-restored" class="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-yellow-500/15 border border-yellow-500/30 text-yellow-300">0</span>
+                    </h2>
+                    <p class="text-xs text-neutral-500 mt-1">Resultados del proceso de restauración · <code class="text-neutral-400">storage/restored/</code></p>
+                </div>
+            </div>
+            <div id="grid-restored" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="empty-restored" class="hidden rounded-xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-10 text-center">
+                <p class="text-sm text-neutral-400">Todavía no restauraste ninguna foto.</p>
+                <a href="/" class="inline-flex items-center gap-2 mt-3 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Ir al estudio a restaurar
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </a>
+            </div>
+        </section>
+
+        <!-- Sección: Estilo retro -->
+        <section id="section-retro" class="mt-12">
+            <div class="flex flex-wrap items-end justify-between gap-3 mb-4 border-b border-neutral-800 pb-3">
+                <div>
+                    <h2 class="flex items-center gap-2 text-lg font-semibold text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fuchsia-400"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                        Estilo retro
+                        <span id="count-retro" class="text-xs font-mono font-normal px-2 py-0.5 rounded-full bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-300">0</span>
+                    </h2>
+                    <p class="text-xs text-neutral-500 mt-1">Resultados de cuantización con paletas y dithering · <code class="text-neutral-400">storage/retro/</code></p>
+                </div>
+            </div>
+            <div id="grid-retro" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="empty-retro" class="hidden rounded-xl border border-dashed border-neutral-800 bg-neutral-950/40 px-6 py-10 text-center">
+                <p class="text-sm text-neutral-400">Todavía no aplicaste ningún estilo retro.</p>
+                <a href="/" class="inline-flex items-center gap-2 mt-3 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                    Ir al estudio a aplicar un estilo
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="border-t border-neutral-800 mt-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-neutral-600">
+            <span>Álbum Digital — Trabajo Final Integrador de Procesamiento Digital de Imágenes</span>
+            <span>Hacé clic en una foto para verla en tamaño completo</span>
+        </div>
+    </footer>
+
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <script src="/ui.js"></script>
+    <script>
+        const TRASH_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>';
+        const BOOK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v6"/><path d="M9 10h6"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>';
+        const CHECK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+        let scrapbookPhotos = [];
+
+        const KINDS = {
+            original: {
+                grid: document.getElementById('grid-originals'),
+                empty: document.getElementById('empty-originals'),
+                count: document.getElementById('count-originals'),
+                label: 'Original',
+                badge: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+            },
+            scanned: {
+                grid: document.getElementById('grid-scanned'),
+                empty: document.getElementById('empty-scanned'),
+                count: document.getElementById('count-scanned'),
+                label: 'Digitalizada',
+                badge: 'bg-indigo-500/15 border-indigo-500/30 text-indigo-300'
+            },
+            restored: {
+                grid: document.getElementById('grid-restored'),
+                empty: document.getElementById('empty-restored'),
+                count: document.getElementById('count-restored'),
+                label: 'Restaurada',
+                badge: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-300'
+            },
+            retro: {
+                grid: document.getElementById('grid-retro'),
+                empty: document.getElementById('empty-retro'),
+                count: document.getElementById('count-retro'),
+                label: 'Retro',
+                badge: 'bg-fuchsia-500/15 border-fuchsia-500/30 text-fuchsia-300'
+            }
+        };
+
+        const DELETED_MESSAGES = {
+            original: 'Foto original eliminada del álbum.',
+            scanned: 'Foto digitalizada eliminada de la galería.',
+            restored: 'Foto restaurada eliminada de la galería.',
+            retro: 'Estilo retro eliminado de la galería.'
+        };
+
+        function el(tag, className, text) {
+            const node = document.createElement(tag);
+            if (className) node.className = className;
+            if (text !== undefined) node.textContent = text;
+            return node;
+        }
+
+        function formatDate(value) {
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleString('es-AR', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function createCard(item) {
+            const style = KINDS[item.kind];
+            const card = el('article', 'group rounded-xl border border-neutral-800 bg-neutral-950/60 overflow-hidden flex flex-col hover:border-neutral-700 transition-colors');
+
+            const link = el('a', 'relative block aspect-[4/3] bg-neutral-900 overflow-hidden');
+            link.href = item.url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            link.title = 'Abrir en tamaño completo';
+
+            const img = el('img', 'w-full h-full object-contain transition-transform duration-300 group-hover:scale-[1.02]');
+            img.src = item.url;
+            img.alt = `${style.label}: foto de ${item.width} por ${item.height} píxeles`;
+            img.loading = 'lazy';
+            img.addEventListener('error', () => {
+                img.remove();
+                link.append(el('div', 'absolute inset-0 flex items-center justify-center px-4 text-center text-xs text-neutral-500', 'No se pudo cargar la imagen'));
+            });
+
+            const badge = el('span', `absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full border backdrop-blur ${style.badge}`, style.label);
+            link.append(img, badge);
+
+            const info = el('div', 'p-3 border-t border-neutral-800 flex items-center justify-between gap-3 text-[11px] text-neutral-400');
+            const details = el('div', 'min-w-0');
+            const size = el('span', 'block font-mono text-neutral-300', `${item.width} × ${item.height} px`);
+            const when = el('time', 'block text-neutral-500 truncate', formatDate(item.created));
+            when.dateTime = item.created;
+
+            const trash = el('button', 'inline-flex items-center justify-center w-8 h-8 shrink-0 rounded-md border border-neutral-800 text-neutral-500 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition-colors');
+            trash.type = 'button';
+            trash.title = 'Eliminar de la galería';
+            trash.setAttribute('aria-label', `Eliminar ${style.label.toLowerCase()} de la galería`);
+            trash.innerHTML = TRASH_ICON;
+            trash.addEventListener('click', () => deleteItem(item, trash));
+
+            const toAlbum = el('button', 'inline-flex items-center justify-center gap-1 h-8 px-2 shrink-0 rounded-md border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 hover:border-indigo-400/60 hover:bg-indigo-500/20 transition-colors');
+            toAlbum.type = 'button';
+            toAlbum.title = 'Agregar al álbum de recuerdos';
+            toAlbum.setAttribute('aria-label', `Agregar ${style.label.toLowerCase()} al álbum de recuerdos`);
+            toAlbum.innerHTML = `${BOOK_ICON}<span class="text-[10px] font-semibold">Álbum</span>`;
+            toAlbum.addEventListener('click', () => addToAlbum(item, toAlbum));
+            if (isInAlbum(item)) markInAlbum(toAlbum);
+
+            const actions = el('div', 'flex items-center gap-1.5 shrink-0');
+            actions.append(toAlbum, trash);
+
+            details.append(size, when);
+            info.append(details, actions);
+
+            card.append(link, info);
+            return card;
+        }
+
+        function isInAlbum(item) {
+            return scrapbookPhotos.some(
+                (saved) => saved.kind === item.kind && saved.source_id === item.id
+            );
+        }
+
+        function markInAlbum(button) {
+            button.disabled = true;
+            button.title = 'Ya está en el álbum de recuerdos';
+            button.classList.remove(
+                'border-indigo-500/30', 'bg-indigo-500/10', 'text-indigo-300',
+                'hover:text-indigo-200', 'hover:border-indigo-400/60', 'hover:bg-indigo-500/20',
+                'opacity-60'
+            );
+            button.classList.add('border-emerald-500/30', 'bg-emerald-500/10', 'text-emerald-300', 'cursor-default');
+            button.innerHTML = `${CHECK_ICON}<span class="text-[10px] font-semibold">En el álbum</span>`;
+        }
+
+        async function addToAlbum(item, button) {
+            const style = KINDS[item.kind];
+            const name = await promptDialog({
+                title: 'Agregar al álbum',
+                message: 'Elegí el nombre con el que va a aparecer esta foto en el álbum de recuerdos.',
+                label: 'Nombre de la foto',
+                placeholder: 'Ej.: Recién salido del cascarón',
+                hint: 'Podés quitarla o cambiarla desde la página del álbum.',
+                confirmLabel: 'Agregar'
+            });
+            if (!name) return;
+
+            button.disabled = true;
+            button.classList.add('opacity-60');
+            try {
+                const response = await fetch('/api/scrapbook/photos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_kind: item.kind, source_id: item.id, name })
+                });
+                if (!response.ok) {
+                    let detail = `Error ${response.status}`;
+                    try {
+                        const body = await response.json();
+                        if (typeof body.detail === 'string') detail = body.detail;
+                    } catch (_) {}
+                    throw new Error(detail);
+                }
+                const saved = await response.json();
+                scrapbookPhotos.push(saved);
+                markInAlbum(button);
+                showToast(`«${saved.name}» se sumó al álbum de recuerdos.`);
+            } catch (err) {
+                button.disabled = false;
+                button.classList.remove('opacity-60');
+                if (err.message.includes('ya está en el álbum')) markInAlbum(button);
+                showToast(`No se pudo agregar la ${style.label.toLowerCase()} al álbum: ${err.message}`, 'error');
+            }
+        }
+
+        function updateCount(kind) {
+            const style = KINDS[kind];
+            const remaining = style.grid.children.length;
+            style.count.textContent = String(remaining);
+            style.empty.classList.toggle('hidden', remaining > 0);
+        }
+
+        async function deleteItem(item, button) {
+            const isOriginal = item.kind === 'original';
+            const question = isOriginal
+                ? 'También se borran sus versiones restauradas y retro de la galería.'
+                : 'Esta acción no se puede deshacer.';
+            const confirmed = await confirmDialog({
+                title: isOriginal ? 'Eliminar foto del álbum' : 'Eliminar de la galería',
+                message: question,
+                confirmLabel: 'Eliminar'
+            });
+            if (!confirmed) return;
+
+            button.disabled = true;
+            button.classList.add('opacity-40', 'pointer-events-none');
+
+            try {
+                const endpoint = item.kind === 'original'
+                    ? `/api/photos/${encodeURIComponent(item.id)}`
+                    : `/api/gallery/${item.kind}/${encodeURIComponent(item.id)}`;
+                const response = await fetch(endpoint, { method: 'DELETE' });
+                if (!response.ok) {
+                    let detail = `Error ${response.status}`;
+                    try {
+                        const body = await response.json();
+                        if (typeof body.detail === 'string') detail = body.detail;
+                    } catch (_) {}
+                    throw new Error(detail);
+                }
+
+                document.getElementById('alert').classList.add('hidden');
+                button.closest('article')?.remove();
+                showToast(DELETED_MESSAGES[item.kind] || 'Foto eliminada de la galería.');
+                if (item.kind === 'original') {
+                    await loadGallery();  // también se fueron sus restauradas y retro
+                } else {
+                    updateCount(item.kind);
+                }
+            } catch (err) {
+                button.disabled = false;
+                button.classList.remove('opacity-40', 'pointer-events-none');
+                showError(`No se pudo eliminar la foto: ${err.message}`);
+            }
+        }
+
+        function renderKind(kind, items) {
+            const style = KINDS[kind];
+            style.grid.replaceChildren();
+            style.count.textContent = String(items.length);
+            style.empty.classList.toggle('hidden', items.length > 0);
+            for (const item of items) {
+                style.grid.append(createCard(item));
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('alert-text').textContent = message;
+            document.getElementById('alert').classList.remove('hidden');
+        }
+
+        async function loadGallery() {
+            const alertBox = document.getElementById('alert');
+            const loading = document.getElementById('loading');
+            const refresh = document.getElementById('btn-refresh');
+
+            alertBox.classList.add('hidden');
+            loading.classList.remove('hidden');
+            document.getElementById('section-originals').classList.add('hidden');
+            document.getElementById('section-scanned').classList.add('hidden');
+            document.getElementById('section-restored').classList.add('hidden');
+            document.getElementById('section-retro').classList.add('hidden');
+            refresh.disabled = true;
+            refresh.classList.add('opacity-50', 'pointer-events-none');
+
+            try {
+                const [galleryResponse, photosResponse, scrapbookResponse] = await Promise.all([
+                    fetch('/api/gallery'),
+                    fetch('/api/photos'),
+                    fetch('/api/scrapbook').catch(() => null)
+                ]);
+                if (!galleryResponse.ok) throw new Error(`Error ${galleryResponse.status}`);
+                if (!photosResponse.ok) throw new Error(`Error ${photosResponse.status}`);
+                const items = await galleryResponse.json();
+                const photos = await photosResponse.json();
+                const book = scrapbookResponse && scrapbookResponse.ok ? await scrapbookResponse.json() : { photos: [] };
+                scrapbookPhotos = book.photos || [];
+                renderKind('original', [...photos].reverse().map((photo) => ({ ...photo, kind: 'original' })));
+                renderKind('scanned', items.filter((item) => item.kind === 'scanned'));
+                renderKind('restored', items.filter((item) => item.kind === 'restored'));
+                renderKind('retro', items.filter((item) => item.kind === 'retro'));
+                document.getElementById('section-originals').classList.remove('hidden');
+                document.getElementById('section-scanned').classList.remove('hidden');
+                document.getElementById('section-restored').classList.remove('hidden');
+                document.getElementById('section-retro').classList.remove('hidden');
+            } catch (err) {
+                showError(`No se pudo cargar la galería (${err.message}). Verificá que el servidor esté corriendo.`);
+            } finally {
+                loading.classList.add('hidden');
+                refresh.disabled = false;
+                refresh.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        loadGallery();
+    </script>
+</body>
+</html>

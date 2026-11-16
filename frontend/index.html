@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMAS · Álbum Digital — Estudio</title>
+    <link rel="icon" type="image/png" href="/assets/favicon.png">
+    <meta name="theme-color" content="#0b0b12">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/theme.css">
+    <style>
+        /* Custom scrollbar for a professional look */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #171717; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #404040; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #525252; 
+        }
+
+        /* Checkbox styling */
+        .custom-checkbox:checked + div {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .custom-checkbox:checked + div svg {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-neutral-900 text-neutral-200 h-screen w-screen overflow-hidden flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+
+    <!-- Header -->
+    <header class="app-header h-14 bg-neutral-950 border-b border-neutral-800 flex items-center justify-between px-6 shrink-0">
+        <a href="/" class="brand-lockup" aria-label="BMAS · Álbum Digital">
+            <img src="/assets/logo-bmas.png" alt="" class="brand-logo">
+            <h1 class="min-w-0">
+                <span class="brand-name">BMAS</span>
+                <span class="brand-sub">Álbum digital · Estudio</span>
+            </h1>
+        </a>
+        <div class="flex items-center gap-2 sm:gap-4 text-xs font-medium text-neutral-400">
+            <a href="/buscar.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span class="hidden sm:inline">Buscar</span>
+            </a>
+            <a href="/album.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                <span class="hidden sm:inline">Álbum</span>
+            </a>
+            <a href="/galeria.html" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-800 bg-neutral-900 text-neutral-400 hover:text-white hover:border-neutral-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                <span class="hidden sm:inline">Galería</span>
+            </a>
+            <span id="status-indicator" class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-neutral-500" id="api-status-dot"></span>
+                <span id="api-status-text" class="hidden sm:inline">Conectando…</span>
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Left / Center: Canvas & Dropzone -->
+        <section class="flex-1 relative bg-neutral-900 page-ambient flex flex-col">
+            <!-- Toolbar -->
+            <div class="h-12 border-b border-neutral-800 flex items-center px-4 gap-2 bg-neutral-900/50">
+                <button onclick="resetWorkspace()" id="btn-reset" class="hidden p-2 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors" title="Cerrar imagen">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+                <div class="flex-1"></div>
+                <div id="canvas-zoom-controls" class="hidden items-center gap-3 text-xs text-neutral-400">
+                    <button class="hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg></button>
+                    <span>100%</span>
+                    <button class="hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6"/><path d="M8 11h6"/></svg></button>
+                </div>
+            </div>
+
+            <!-- Dropzone -->
+            <div id="dropzone" class="absolute inset-0 flex flex-col items-center justify-center p-8 mt-12 transition-all duration-300">
+                <div class="w-full max-w-lg border-2 border-dashed border-neutral-700 rounded-2xl bg-neutral-800/30 flex flex-col items-center justify-center p-12 text-center hover:bg-neutral-800/50 hover:border-indigo-500/50 transition-colors group cursor-pointer" onclick="document.getElementById('file-upload').click()">
+                    <div class="w-16 h-16 mb-4 rounded-full bg-neutral-800 flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-indigo-500/20 group-hover:text-indigo-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-neutral-200 mb-2">Arrastra tu foto aquí</h3>
+                    <p class="text-sm text-neutral-400 mb-6">Soporta JPG y PNG (máx. 20 MB)</p>
+                    <button class="btn-brand px-5 py-2.5 text-sm font-medium rounded-lg">
+                        Explorar archivos
+                    </button>
+                    <input id="file-upload" type="file" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+
+            <!-- Canvas (Viewer: original vs procesada) -->
+            <div id="canvas-area" class="hidden absolute inset-0 mt-12 bg-neutral-900 overflow-y-auto p-4">
+                <div class="min-h-full w-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                    <!-- Original -->
+                    <div class="flex flex-col min-h-[260px] lg:min-h-0 min-w-0">
+                        <div class="flex items-center mb-2 px-1">
+                            <span class="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">Original</span>
+                        </div>
+                        <div class="relative flex-1 min-h-0 rounded-lg border border-neutral-800 bg-neutral-950/60 flex items-center justify-center overflow-hidden">
+                            <img id="original-image" alt="Foto original" class="max-w-full max-h-full object-contain">
+                        </div>
+                        <!-- espacio reservado para alinear con el botón de descarga en escritorio -->
+                        <div class="mt-3 h-10 shrink-0 hidden lg:block" aria-hidden="true"></div>
+                    </div>
+
+                    <!-- Procesada -->
+                    <div class="flex flex-col min-h-[260px] lg:min-h-0 min-w-0">
+                        <div class="flex items-center mb-2 px-1">
+                            <span class="text-[11px] font-semibold uppercase tracking-widest text-indigo-400">Procesada</span>
+                        </div>
+                        <div class="relative flex-1 min-h-0 rounded-lg border border-neutral-800 bg-neutral-950/60 flex items-center justify-center overflow-hidden">
+                            <img id="processed-image" alt="Foto procesada" class="hidden max-w-full max-h-full object-contain">
+                            <div id="processed-placeholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-neutral-600"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                <p class="text-sm text-neutral-400">Todavía no hay una versión procesada</p>
+                                <p class="text-xs text-neutral-600">Usá Digitalizar, Restauración o Estilo retro para generar el resultado.</p>
+                            </div>
+                            <!-- Overlay loading -->
+                            <div id="canvas-overlay" class="hidden absolute inset-0 bg-neutral-900/70 z-20 backdrop-blur-sm flex items-center justify-center">
+                                <div class="flex flex-col items-center gap-3">
+                                    <div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <span id="canvas-overlay-text" class="text-sm font-medium text-white shadow-sm">Procesando...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 min-h-10 shrink-0 flex items-center justify-center">
+                            <a id="btn-download" download aria-disabled="true" class="inline-flex items-center justify-center gap-2 h-9 max-w-full px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-sm font-medium text-neutral-200 transition-colors whitespace-nowrap opacity-40 pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                                <span class="hidden sm:inline">Descargar imagen procesada</span>
+                                <span class="sm:hidden">Descargar</span>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Sidebar (Tools) -->
+        <aside class="w-80 bg-neutral-950 page-ambient border-l border-neutral-800 flex flex-col shrink-0 overflow-y-auto">
+            
+            <div class="p-4 border-b border-neutral-800 bg-neutral-900 sticky top-0 z-10">
+                <h2 class="text-xs font-bold tracking-widest text-neutral-500 uppercase">Herramientas</h2>
+            </div>
+
+            <div class="p-4 flex flex-col gap-6" id="tools-container">
+                
+                <!-- Tool: Digitalizar -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-scan">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="m6 12-3 3 3 3"/></svg>
+                        <h3 class="text-sm font-semibold">Digitalizar</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Detecta la hoja impresa y corrige la perspectiva automáticamente.</p>
+                    <button id="btn-scan" onclick="processScan()" class="btn-brand w-full relative flex items-center justify-center py-2 px-4 rounded-lg text-sm font-medium group overflow-hidden">
+                        <span class="relative z-10 flex items-center gap-2 btn-content">
+                            Recortar y Centrar
+                        </span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800">
+                            <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+                </div>
+
+                <hr class="border-neutral-800">
+
+                <!-- Tool: Calidad -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-quality">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-teal-400"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>
+                        <h3 class="text-sm font-semibold">Diagnóstico</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Analiza la nitidez y el nivel de ruido de la fotografía.</p>
+                    
+                    <button id="btn-diagnose" onclick="processDiagnose()" class="btn-brand w-full relative flex items-center justify-center py-2 px-4 rounded-lg text-sm font-medium mb-3 overflow-hidden">
+                        <span class="btn-content">Analizar Calidad</span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                            <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+
+                    <!-- Quality Report Results (Hidden by default) -->
+                    <div id="quality-results" class="hidden bg-neutral-900 border border-neutral-800 rounded-lg p-3 text-xs space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-neutral-400">Nitidez (Sharpness)</span>
+                            <span id="val-sharpness" class="font-mono text-neutral-200">--</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-neutral-400">Ruido (Noise)</span>
+                            <span id="val-noise" class="font-mono text-neutral-200">--</span>
+                        </div>
+                        <div class="pt-2 mt-2 border-t border-neutral-800 grid grid-cols-2 gap-2">
+                            <div id="badge-blurry" class="flex flex-col items-center p-1.5 rounded bg-neutral-800 text-neutral-500">
+                                <span class="font-medium">Borrosa</span>
+                                <span class="status-icon">-</span>
+                            </div>
+                            <div id="badge-noisy" class="flex flex-col items-center p-1.5 rounded bg-neutral-800 text-neutral-500">
+                                <span class="font-medium">Ruidosa</span>
+                                <span class="status-icon">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-neutral-800">
+
+                <!-- Tool: Restauración manual -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-restore">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.287 1.288L3 12l5.8 1.9a2 2 0 0 1 1.288 1.287L12 21l1.9-5.8a2 2 0 0 1 1.287-1.288L21 12l-5.8-1.9a2 2 0 0 1-1.288-1.287Z"/></svg>
+                        <h3 class="text-sm font-semibold">Restauración</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Aplicá una herramienta por vez. Cada paso trabaja sobre el resultado anterior; la foto original nunca se modifica.</p>
+
+                    <!-- 1. Quitar ruido -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">1. Quitar ruido</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">Filtro</span>
+                        </div>
+                        <label for="dn-method" class="sr-only">Método de reducción de ruido</label>
+                        <select id="dn-method" onchange="updateDenoiseControls()" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="median">Mediana · sal y pimienta</option>
+                            <option value="bilateral">Bilateral · ruido fino</option>
+                        </select>
+                        <div id="dn-median-controls">
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Ventana (impar)</span><span id="dn-kernel-val" class="font-mono">5</span></div>
+                            <input id="dn-kernel" type="range" min="3" max="9" step="2" value="5" oninput="document.getElementById('dn-kernel-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div id="dn-bilateral-controls" class="hidden space-y-2">
+                            <div>
+                                <div class="flex justify-between text-[11px] text-neutral-400"><span>Diámetro</span><span id="dn-diameter-val" class="font-mono">5</span></div>
+                                <input id="dn-diameter" type="range" min="3" max="9" step="2" value="5" oninput="document.getElementById('dn-diameter-val').textContent=this.value" class="w-full accent-indigo-500">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-[11px] text-neutral-400"><span>Sigma</span><span id="dn-sigma-val" class="font-mono">75</span></div>
+                                <input id="dn-sigma" type="range" min="10" max="150" step="5" value="75" oninput="document.getElementById('dn-sigma-val').textContent=this.value" class="w-full accent-indigo-500">
+                            </div>
+                        </div>
+                        <button id="btn-denoise" onclick="processRestoreStep('denoise')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar reducción de ruido</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- 2. Reparar rasguños -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">2. Reparar rasguños</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">Top-hat + inpaint</span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Largo del rasguño</span><span id="sc-length-val" class="font-mono">25</span></div>
+                            <input id="sc-length" type="range" min="9" max="51" step="2" value="25" oninput="document.getElementById('sc-length-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Contraste mínimo</span><span id="sc-min-contrast-val" class="font-mono">40</span></div>
+                            <input id="sc-min-contrast" type="range" min="10" max="100" step="5" value="40" oninput="document.getElementById('sc-min-contrast-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Radio de relleno</span><span id="sc-radius-val" class="font-mono">3</span></div>
+                            <input id="sc-radius" type="range" min="1" max="10" value="3" oninput="document.getElementById('sc-radius-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <label for="sc-method" class="sr-only">Método de inpainting</label>
+                        <select id="sc-method" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="telea">Relleno TELEA</option>
+                            <option value="ns">Relleno Navier-Stokes</option>
+                        </select>
+                        <button id="btn-scratches" onclick="processRestoreStep('scratches')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar reparación</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- 3. Realzar contraste -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">3. Realzar contraste</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">CLAHE</span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Intensidad (clip)</span><span id="ct-clip-val" class="font-mono">2.5</span></div>
+                            <input id="ct-clip" type="range" min="1" max="8" step="0.5" value="2.5" oninput="document.getElementById('ct-clip-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <label for="ct-tile" class="sr-only">Grilla de tiles</label>
+                        <select id="ct-tile" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="4">Grilla 4×4</option>
+                            <option value="8" selected>Grilla 8×8</option>
+                            <option value="16">Grilla 16×16</option>
+                        </select>
+                        <button id="btn-contrast" onclick="processRestoreStep('contrast')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar contraste</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- 4. Balance de blancos -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">4. Balance de blancos</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">Color</span>
+                        </div>
+                        <label for="wb-method" class="sr-only">Método de balance de blancos</label>
+                        <select id="wb-method" class="w-full bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-indigo-500">
+                            <option value="gray-world">Gray-world · promedio gris</option>
+                            <option value="white-patch">White patch · punto blanco</option>
+                        </select>
+                        <label class="flex items-center gap-2 text-[11px] text-neutral-400 cursor-pointer">
+                            <input id="wb-stretch" type="checkbox" checked class="accent-indigo-500">
+                            Estirar histograma (LAB)
+                        </label>
+                        <button id="btn-whitebalance" onclick="processRestoreStep('whitebalance')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar balance</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- 5. Realzar nitidez -->
+                    <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-3 mb-2.5 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-neutral-200">5. Realzar nitidez</span>
+                            <span class="text-[10px] uppercase tracking-wide text-neutral-600">Unsharp mask</span>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Intensidad (amount)</span><span id="sh-amount-val" class="font-mono">0.8</span></div>
+                            <input id="sh-amount" type="range" min="0.1" max="2" step="0.1" value="0.8" oninput="document.getElementById('sh-amount-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[11px] text-neutral-400"><span>Radio (sigma)</span><span id="sh-sigma-val" class="font-mono">1.2</span></div>
+                            <input id="sh-sigma" type="range" min="0.5" max="3" step="0.1" value="1.2" oninput="document.getElementById('sh-sigma-val').textContent=this.value" class="w-full accent-indigo-500">
+                        </div>
+                        <button id="btn-sharpen" onclick="processRestoreStep('sharpen')" class="w-full relative flex items-center justify-center py-2 px-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg text-xs font-medium transition-all">
+                            <span class="btn-content">Aplicar nitidez</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Historial de pasos manuales -->
+                    <div id="restore-history" class="hidden mt-3 bg-neutral-900 border border-neutral-800 rounded-lg p-3">
+                        <div class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 mb-2">Pasos aplicados</div>
+                        <ol id="restore-history-list" class="space-y-1.5 text-xs text-neutral-300"></ol>
+                        <div id="restore-metrics" class="hidden mt-2 pt-2 border-t border-neutral-800 text-[11px] leading-relaxed text-neutral-400"></div>
+                    </div>
+
+                    <!-- Configuraciones guardadas -->
+                    <div class="preset-panel mt-3 border rounded-lg p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] font-semibold uppercase tracking-widest text-neutral-500">Configuraciones guardadas</span>
+                            <span id="preset-count" class="text-[10px] text-indigo-300"></span>
+                        </div>
+                        <div id="preset-list" class="space-y-1.5"></div>
+                        <p id="preset-empty" class="text-[11px] text-neutral-600">Todavía no guardaste ninguna. Aplicá pasos y guardá la secuencia con un nombre.</p>
+                        <div class="mt-2 flex gap-1.5">
+                            <label for="preset-name" class="sr-only">Nombre de la configuración</label>
+                            <input id="preset-name" maxlength="60" placeholder="Nombre de la configuración" class="preset-name-input flex-1 min-w-0 bg-neutral-950 border border-neutral-700 rounded-md px-2 py-1.5 text-xs text-neutral-200 placeholder:text-neutral-600 focus:outline-none">
+                            <button id="btn-save-preset" onclick="savePreset()" class="btn-brand px-3 py-1.5 rounded-md text-xs font-medium">Guardar</button>
+                        </div>
+                        <p class="mt-1.5 text-[10px] leading-relaxed text-neutral-600">Guarda los pasos aplicados en esta sesión, en orden. Un preset se aplica sobre el resultado actual; usá "Volver al original" si querés empezar de cero.</p>
+                    </div>
+
+                    <div class="mt-3 grid grid-cols-2 gap-2">
+                        <button id="btn-restore" onclick="processRestore()" class="btn-brand relative flex items-center justify-center py-2 px-3 rounded-lg text-xs font-medium">
+                            <span class="btn-content">Aplicar las 3</span>
+                            <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-indigo-600 rounded-lg">
+                                <div class="w-4 h-4 border-2 border-indigo-200 border-t-white rounded-full animate-spin"></div>
+                            </div>
+                        </button>
+                        <button id="btn-restore-reset" onclick="resetRestoration()" class="flex items-center justify-center gap-1.5 py-2 px-3 bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 rounded-lg text-xs font-medium text-neutral-300 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            Volver al original
+                        </button>
+                    </div>
+
+                    <!-- Restoration Progress (automático) -->
+                    <div id="restore-progress" class="hidden mt-4">
+                        <div class="text-xs font-medium text-neutral-400 mb-2">Proceso:</div>
+                        <ul class="space-y-2 text-xs" id="progress-list">
+                            <!-- Steps added dynamically -->
+                        </ul>
+                    </div>
+                </div>
+
+                <hr class="border-neutral-800">
+
+                <!-- Tool: Estilo retro -->
+                <div class="tool-panel opacity-50 pointer-events-none transition-opacity" id="panel-retro">
+                    <div class="flex items-center gap-2 mb-3 text-neutral-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-fuchsia-400"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+                        <h3 class="text-sm font-semibold">Estilo retro</h3>
+                    </div>
+                    <p class="text-xs text-neutral-500 mb-3 leading-relaxed">Cuantiza la foto con una paleta fija y dithering Floyd–Steinberg.</p>
+
+                    <label for="retro-palette" class="block text-[11px] font-medium uppercase tracking-wide text-neutral-500 mb-1.5">Paleta</label>
+                    <select id="retro-palette" onchange="updateRetroSwatches()" class="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-2.5 py-2 text-xs text-neutral-200 focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500/40">
+                        <option value="gameboy">Game Boy</option>
+                    </select>
+                    <div id="retro-swatches" class="flex flex-wrap gap-1 mt-2"></div>
+                    <p id="retro-hint" class="text-[11px] text-neutral-600 mt-1.5 mb-3"></p>
+
+                    <label class="flex items-center gap-3 cursor-pointer group mb-3">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" id="opt-dither" class="custom-checkbox opacity-0 absolute h-4 w-4 cursor-pointer" checked>
+                            <div class="bg-neutral-800 border border-neutral-600 rounded w-4 h-4 flex flex-shrink-0 justify-center items-center mr-2 transition-colors">
+                                <svg class="hidden w-3 h-3 text-white pointer-events-none" viewBox="0 0 17 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 5.5L6 10.5L16 1.5"></path></svg>
+                            </div>
+                        </div>
+                        <span class="text-xs text-neutral-300 group-hover:text-white transition-colors">Dithering Floyd–Steinberg</span>
+                    </label>
+
+                    <button id="btn-retro" onclick="processRetro()" class="btn-brand w-full relative flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-medium overflow-hidden">
+                        <span class="btn-content flex items-center gap-2">
+                            Aplicar estilo retro
+                        </span>
+                        <div class="btn-loader hidden absolute inset-0 flex items-center justify-center bg-neutral-800 rounded-lg">
+                            <div class="w-4 h-4 border-2 border-neutral-400 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                    </button>
+                </div>
+
+            </div>
+        </aside>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-8 z-50 flex flex-col gap-2"></div>
+
+    <script src="/ui.js"></script>
+    <script>
+        // --- State ---
+        let state = {
+            file: null,              // archivo de trabajo que se sube y procesa
+            originalName: null,      // nombre del archivo elegido al inicio
+            originalUrl: null,       // object URL del original (panel izquierdo)
+            processedUrl: null,      // URL de la versión procesada (object URL o servidor)
+            processedObjectUrl: false,
+            processedName: null,     // nombre sugerido al descargar
+            photoId: null,           // id en el álbum; null = todavía no se subió
+            photoUrl: null,          // URL del servidor de la foto actual
+            busy: false,
+            restored: false,
+            restoreHistory: [],      // pasos manuales aplicados en esta sesión
+            restoreMetrics: null     // comparación de la última restauración con el original
+        };
+
+        const DOM = {
+            dropzone: document.getElementById('dropzone'),
+            canvasArea: document.getElementById('canvas-area'),
+            originalImage: document.getElementById('original-image'),
+            processedImage: document.getElementById('processed-image'),
+            processedPlaceholder: document.getElementById('processed-placeholder'),
+            download: document.getElementById('btn-download'),
+            btnReset: document.getElementById('btn-reset'),
+            zoomControls: document.getElementById('canvas-zoom-controls'),
+            panels: document.querySelectorAll('.tool-panel'),
+            overlay: document.getElementById('canvas-overlay'),
+            overlayText: document.getElementById('canvas-overlay-text'),
+            toastContainer: document.getElementById('toast-container')
+        };
+
+        // Paletas de respaldo: la lista real la entrega /api/retro/palettes.
+        const RETRO_FALLBACK = [
+            { name: 'gameboy', label: 'Game Boy', colors: ['#0F380F', '#306230', '#8BAC0F', '#9BBC0F'], monochrome: true },
+            { name: 'bw', label: 'Blanco y negro', colors: ['#000000', '#FFFFFF'], monochrome: true },
+            { name: 'virtualboy', label: 'Virtual Boy', colors: ['#000000', '#550000', '#AA0000', '#FF0000'], monochrome: true },
+            { name: 'cga', label: 'CGA', colors: ['#000000', '#55FFFF', '#FF55FF', '#FFFFFF'], monochrome: false },
+            { name: 'pico8', label: 'PICO-8', colors: ['#000000', '#1D2B53', '#7E2553', '#008751', '#AB5236', '#5F574F', '#C2C3C7', '#FFF1E8', '#FF004D', '#FFA300', '#FFEC27', '#00E436', '#29ADFF', '#83769C', '#FF77A8', '#FFCCAA'], monochrome: false }
+        ];
+        let retroPalettes = RETRO_FALLBACK;
+        let savedPresets = [];
+
+        // --- API helpers ---
+        async function api(path, options = {}) {
+            const response = await fetch(path, options);
+            if (response.ok) return response;
+            let detail = `Error ${response.status}`;
+            try {
+                const body = await response.json();
+                if (typeof body.detail === "string") detail = body.detail;
+                else if (Array.isArray(body.detail)) detail = body.detail.map((item) => item.msg).join(" · ");
+            } catch (_) {}
+            throw new Error(detail);
+        }
+
+        async function apiJson(path, options = {}) {
+            return (await api(path, options)).json();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = String(text);
+            return div.innerHTML;
+        }
+
+        async function ensureUploaded() {
+            if (state.photoId) return state.photoId;
+            if (!state.file) throw new Error("No hay ninguna foto cargada.");
+            const form = new FormData();
+            form.append("file", state.file, state.file.name || "foto.png");
+            const photo = await apiJson("/api/photos", { method: "POST", body: form });
+            state.photoId = photo.id;
+            state.photoUrl = photo.url;
+            if (photo.duplicates.length) {
+                showToast(`Foto subida (${photo.id}). Ya tenías ${photo.duplicates.length} parecida(s).`, "info");
+            } else {
+                showToast(`Foto subida al álbum (${photo.id}).`, "success");
+            }
+            return photo.id;
+        }
+
+        async function checkApi() {
+            const dot = document.getElementById("api-status-dot");
+            const text = document.getElementById("api-status-text");
+            try {
+                await api("/api/health");
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                text.textContent = "API conectada";
+            } catch (_) {
+                dot.className = "w-2 h-2 rounded-full bg-red-500";
+                text.textContent = "API desconectada";
+            }
+        }
+
+        async function loadRetroPalettes() {
+            try {
+                retroPalettes = await apiJson('/api/retro/palettes');
+            } catch (_) {
+                retroPalettes = RETRO_FALLBACK;
+            }
+            const select = document.getElementById('retro-palette');
+            const current = select.value;
+            select.innerHTML = retroPalettes
+                .map(palette => `<option value="${escapeHtml(palette.name)}">${escapeHtml(palette.label)}</option>`)
+                .join('');
+            if (retroPalettes.some(palette => palette.name === current)) select.value = current;
+            updateRetroSwatches();
+        }
+
+        function updateRetroSwatches() {
+            const select = document.getElementById('retro-palette');
+            const swatches = document.getElementById('retro-swatches');
+            const hint = document.getElementById('retro-hint');
+            const palette = retroPalettes.find(item => item.name === select.value);
+            if (!palette) {
+                swatches.innerHTML = '';
+                hint.textContent = '';
+                return;
+            }
+            swatches.innerHTML = palette.colors
+                .map(color => `<span class="w-5 h-5 rounded border border-white/10" style="background:${escapeHtml(color)}" title="${escapeHtml(color)}"></span>`)
+                .join('');
+            hint.textContent = `${palette.colors.length} colores${palette.monochrome ? ' · rampa monocromática' : ''}`;
+        }
+
+        // --- Init & Event Listeners ---
+        function init() {
+            // Drag and drop events
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            DOM.dropzone.addEventListener('dragenter', highlightDropzone, false);
+            DOM.dropzone.addEventListener('dragover', highlightDropzone, false);
+            DOM.dropzone.addEventListener('dragleave', unhighlightDropzone, false);
+            DOM.dropzone.addEventListener('drop', handleDrop, false);
+
+            checkApi();
+            loadRetroPalettes();
+            loadPresets();
+            updateDenoiseControls();
+        }
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlightDropzone() {
+            DOM.dropzone.querySelector('div').classList.add('border-indigo-500', 'bg-neutral-800/60');
+        }
+
+        function unhighlightDropzone() {
+            DOM.dropzone.querySelector('div').classList.remove('border-indigo-500', 'bg-neutral-800/60');
+        }
+
+        function handleDrop(e) {
+            unhighlightDropzone();
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            e.target.value = "";  // permite volver a elegir el mismo archivo
+            if (file) handleFile(file);
+        }
+
+        // --- Core Functions ---
+        function revokeObjectUrl(url) {
+            if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+        }
+
+        function baseName(name) {
+            return (name || 'foto').replace(/\.[^.]+$/, '') || 'foto';
+        }
+
+        function setProcessed(url, name, { fromObjectUrl = false } = {}) {
+            if (state.processedObjectUrl) revokeObjectUrl(state.processedUrl);
+            state.processedUrl = url;
+            state.processedObjectUrl = fromObjectUrl;
+            state.processedName = name;
+            DOM.processedImage.src = url;
+            DOM.processedImage.classList.remove('hidden');
+            DOM.processedPlaceholder.classList.add('hidden');
+            DOM.download.href = url;
+            DOM.download.download = name;
+            DOM.download.classList.remove('opacity-40', 'pointer-events-none');
+            DOM.download.setAttribute('aria-disabled', 'false');
+        }
+
+        function clearProcessed() {
+            if (state.processedObjectUrl) revokeObjectUrl(state.processedUrl);
+            state.processedUrl = null;
+            state.processedObjectUrl = false;
+            state.processedName = null;
+            DOM.processedImage.removeAttribute('src');
+            DOM.processedImage.classList.add('hidden');
+            DOM.processedPlaceholder.classList.remove('hidden');
+            DOM.download.removeAttribute('href');
+            DOM.download.classList.add('opacity-40', 'pointer-events-none');
+            DOM.download.setAttribute('aria-disabled', 'true');
+        }
+
+        async function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showToast('Por favor subí un archivo de imagen válido.', 'error');
+                return;
+            }
+            if (file.size > 20 * 1024 * 1024) {
+                showToast('La foto supera los 20 MB.', 'error');
+                return;
+            }
+
+            if (state.originalUrl) revokeObjectUrl(state.originalUrl);
+            clearProcessed();
+
+            state.file = file;
+            state.originalName = file.name;
+            state.originalUrl = URL.createObjectURL(file);
+            state.photoId = null;
+            state.photoUrl = null;
+            state.restored = false;
+            state.restoreHistory = [];
+            state.restoreMetrics = null;
+            DOM.originalImage.src = state.originalUrl;
+
+            // Switch UI
+            DOM.dropzone.classList.add('hidden');
+            DOM.canvasArea.classList.remove('hidden');
+            DOM.btnReset.classList.remove('hidden');
+            DOM.zoomControls.classList.remove('hidden');
+            DOM.zoomControls.classList.add('flex');
+
+            document.getElementById('quality-results').classList.add('hidden');
+            document.getElementById('restore-progress').classList.add('hidden');
+            renderRestoreHistory();
+
+            enableTools();
+            showToast(`Foto cargada: ${file.name}`, 'info');
+        }
+
+        function resetWorkspace() {
+            if (state.originalUrl) revokeObjectUrl(state.originalUrl);
+            clearProcessed();
+            state = {
+                file: null,
+                originalName: null,
+                originalUrl: null,
+                processedUrl: null,
+                processedObjectUrl: false,
+                processedName: null,
+                photoId: null,
+                photoUrl: null,
+                busy: false,
+                restored: false,
+                restoreHistory: [],
+                restoreMetrics: null
+            };
+            DOM.originalImage.removeAttribute('src');
+            DOM.canvasArea.classList.add('hidden');
+            DOM.dropzone.classList.remove('hidden');
+            DOM.btnReset.classList.add('hidden');
+            DOM.zoomControls.classList.add('hidden');
+            DOM.zoomControls.classList.remove('flex');
+            DOM.overlay.classList.add('hidden');
+
+            // Reset tools
+            DOM.panels.forEach(p => {
+                p.classList.add('opacity-50', 'pointer-events-none');
+            });
+            document.getElementById('quality-results').classList.add('hidden');
+            document.getElementById('restore-progress').classList.add('hidden');
+            document.getElementById('progress-list').innerHTML = '';
+            renderRestoreHistory();
+        }
+
+        function enableTools() {
+            DOM.panels.forEach(p => {
+                p.classList.remove('opacity-50', 'pointer-events-none');
+            });
+        }
+
+        // --- Action Handlers (API real) ---
+
+        async function processScan() {
+            if (state.busy || !state.file) return;
+            setProcessing('btn-scan', 'Buscando la hoja...');
+
+            try {
+                const form = new FormData();
+                form.append('file', state.file, state.file.name || 'mesa.png');
+                const blob = await (await api('/api/scan', { method: 'POST', body: form })).blob();
+                const scanned = new File([blob], 'digitalizada.png', { type: 'image/png' });
+
+                state.file = scanned;  // el PNG corregido pasa a ser el archivo de trabajo
+                state.photoId = null;  // se sube recién cuando hace falta
+                state.photoUrl = null;
+                state.restored = false;
+                state.restoreHistory = [];
+                state.restoreMetrics = null;
+                setProcessed(URL.createObjectURL(scanned), 'digitalizada.png', { fromObjectUrl: true });
+                renderRestoreHistory();
+                document.getElementById('quality-results').classList.add('hidden');
+                document.getElementById('restore-progress').classList.add('hidden');
+                showToast('Hoja detectada y guardada en la galería. Ya podés diagnosticarla, restaurarla o darle un estilo retro.', 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-scan');
+            }
+        }
+
+        async function processDiagnose() {
+            if (state.busy || !state.file) return;
+            setProcessing('btn-diagnose', 'Analizando calidad...');
+
+            const results = document.getElementById('quality-results');
+            results.classList.add('hidden');
+
+            try {
+                const id = await ensureUploaded();
+                const report = await apiJson(`/api/photos/${id}/diagnose`);
+
+                document.getElementById('val-sharpness').textContent = report.sharpness.toFixed(1);
+                document.getElementById('val-noise').textContent = report.noise.toFixed(1);
+                updateBadge('badge-blurry', report.blurry);
+                updateBadge('badge-noisy', report.noisy);
+                results.classList.remove('hidden');
+
+                const estado = report.blurry || report.noisy ? 'conviene restaurarla' : 'se ve bien';
+                showToast(`Diagnóstico: ${estado}.`, report.blurry || report.noisy ? 'info' : 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-diagnose');
+            }
+        }
+
+        function updateBadge(id, isTrue) {
+            const el = document.getElementById(id);
+            const icon = el.querySelector('.status-icon');
+            el.className = `flex flex-col items-center p-1.5 rounded text-xs ${isTrue ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`;
+            icon.innerHTML = isTrue 
+                ? '<svg class="w-4 h-4 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+                : '<svg class="w-4 h-4 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+        }
+
+        function updateDenoiseControls() {
+            const method = document.getElementById('dn-method').value;
+            document.getElementById('dn-median-controls').classList.toggle('hidden', method !== 'median');
+            document.getElementById('dn-bilateral-controls').classList.toggle('hidden', method !== 'bilateral');
+        }
+
+        function restoreStepParams(operation) {
+            if (operation === 'denoise') {
+                const method = document.getElementById('dn-method').value;
+                if (method === 'median') {
+                    return { method, kernel_size: Number(document.getElementById('dn-kernel').value) };
+                }
+                return {
+                    method,
+                    diameter: Number(document.getElementById('dn-diameter').value),
+                    sigma: Number(document.getElementById('dn-sigma').value),
+                };
+            }
+            if (operation === 'scratches') {
+                return {
+                    length: Number(document.getElementById('sc-length').value),
+                    min_contrast: Number(document.getElementById('sc-min-contrast').value),
+                    radius: Number(document.getElementById('sc-radius').value),
+                    method: document.getElementById('sc-method').value,
+                };
+            }
+            if (operation === 'whitebalance') {
+                return {
+                    method: document.getElementById('wb-method').value,
+                    stretch: document.getElementById('wb-stretch').checked,
+                };
+            }
+            if (operation === 'sharpen') {
+                return {
+                    amount: Number(document.getElementById('sh-amount').value),
+                    sigma: Number(document.getElementById('sh-sigma').value),
+                };
+            }
+            return {
+                clip_limit: Number(document.getElementById('ct-clip').value),
+                tile_size: Number(document.getElementById('ct-tile').value),
+            };
+        }
+
+        function describeRestoreParams(operation, params) {
+            if (operation === 'denoise') {
+                return params.method === 'median'
+                    ? `mediana ${params.kernel_size}×${params.kernel_size}`
+                    : `bilateral ${params.diameter}px · σ ${params.sigma}`;
+            }
+            if (operation === 'scratches') {
+                return `largo ${params.length} · contraste ≥ ${params.min_contrast} · radio ${params.radius} · ${String(params.method).toUpperCase()}`;
+            }
+            if (operation === 'whitebalance') {
+                return `${params.method} · ${params.stretch ? 'con' : 'sin'} estiramiento`;
+            }
+            if (operation === 'sharpen') {
+                return `intensidad ${params.amount} · radio ${params.sigma}`;
+            }
+            return `clip ${params.clip_limit} · grilla ${params.tile_size}×${params.tile_size}`;
+        }
+
+        function renderRestoreHistory() {
+            const box = document.getElementById('restore-history');
+            const list = document.getElementById('restore-history-list');
+            if (!state.restoreHistory.length) {
+                box.classList.add('hidden');
+                list.innerHTML = '';
+                renderRestoreMetrics();
+                return;
+            }
+            box.classList.remove('hidden');
+            list.innerHTML = state.restoreHistory.map((step, index) => `
+                <li class="flex items-start gap-2">
+                    <span class="mt-0.5 w-4 h-4 shrink-0 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-semibold flex items-center justify-center">${index + 1}</span>
+                    <span><span class="text-neutral-200">${escapeHtml(step.label)}</span><span class="text-neutral-500"> · ${escapeHtml(step.detail)}</span></span>
+                </li>`).join('');
+            renderRestoreMetrics();
+        }
+
+        function renderRestoreMetrics() {
+            const box = document.getElementById('restore-metrics');
+            const metrics = state.restoreMetrics;
+            if (!metrics || !state.restoreHistory.length) {
+                box.classList.add('hidden');
+                box.innerHTML = '';
+                return;
+            }
+            const fmt = value => value >= 100 ? value.toFixed(0) : value.toFixed(1);
+            const psnr = metrics.psnr == null ? 'sin diferencia' : `${metrics.psnr.toFixed(2)} dB`;
+            box.classList.remove('hidden');
+            box.innerHTML = `Frente al original: nitidez ${fmt(metrics.sharpness_before)} → ${fmt(metrics.sharpness_after)} · ruido ${fmt(metrics.noise_before)} → ${fmt(metrics.noise_after)} · PSNR ${psnr}`;
+        }
+
+        // --- Configuraciones guardadas ---
+        async function loadPresets() {
+            try {
+                savedPresets = await apiJson('/api/presets');
+            } catch (_) {
+                savedPresets = [];
+            }
+            renderPresets();
+        }
+
+        function renderPresets() {
+            const list = document.getElementById('preset-list');
+            const empty = document.getElementById('preset-empty');
+            const count = document.getElementById('preset-count');
+            empty.classList.toggle('hidden', savedPresets.length > 0);
+            count.textContent = savedPresets.length ? String(savedPresets.length) : '';
+            list.innerHTML = savedPresets.map(preset => `
+                <div class="preset-item">
+                    <button type="button" onclick="applyPreset('${escapeHtml(preset.id)}')" class="preset-apply">
+                        <span class="preset-name">${escapeHtml(preset.name)}</span>
+                        <span class="preset-meta"><span class="preset-dot"></span>${preset.steps.length} paso${preset.steps.length === 1 ? '' : 's'}</span>
+                    </button>
+                    <button type="button" onclick="deletePreset('${escapeHtml(preset.id)}')" title="Eliminar configuración" aria-label="Eliminar configuración" class="preset-delete">×</button>
+                </div>`).join('');
+        }
+
+        async function savePreset() {
+            if (state.busy) return;
+            const input = document.getElementById('preset-name');
+            const name = input.value.trim();
+            if (!name) {
+                showToast('Escribí un nombre para la configuración.', 'info');
+                input.focus();
+                return;
+            }
+            const steps = state.restoreHistory
+                .filter(step => step.operation && step.parameters)
+                .map(step => ({ operation: step.operation, parameters: step.parameters }));
+            if (!steps.length) {
+                showToast('Aplicá al menos un paso manual antes de guardar la configuración.', 'info');
+                return;
+            }
+
+            const button = document.getElementById('btn-save-preset');
+            button.disabled = true;
+            try {
+                const saved = await apiJson('/api/presets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, steps }),
+                });
+                input.value = '';
+                await loadPresets();
+                showToast(`Configuración "${saved.name}" guardada (${saved.steps.length} pasos).`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function applyPreset(presetId) {
+            if (state.busy || !state.file) return;
+            const preset = savedPresets.find(item => item.id === presetId);
+            if (!preset) return;
+
+            state.busy = true;
+            DOM.overlayText.textContent = `Aplicando "${preset.name}"...`;
+            DOM.overlay.classList.remove('hidden');
+            try {
+                const id = await ensureUploaded();
+                const out = await apiJson(`/api/photos/${id}/restore/preset/${presetId}`, { method: 'POST' });
+                setProcessed(
+                    `${out.restored_url}?t=${Date.now()}`,
+                    `${baseName(state.originalName)}_restaurada.png`
+                );
+                state.photoUrl = out.restored_url;
+                state.restored = true;
+                state.restoreHistory = out.steps.map(step => ({
+                    operation: step.operation,
+                    parameters: step.parameters,
+                    label: step.label,
+                    detail: describeRestoreParams(step.operation, step.parameters),
+                }));
+                state.restoreMetrics = out.metrics;
+                renderRestoreHistory();
+                showToast(`Configuración "${out.preset_name}" aplicada (${out.steps.length} pasos).`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                state.busy = false;
+                DOM.overlay.classList.add('hidden');
+            }
+        }
+
+        async function deletePreset(presetId) {
+            if (state.busy) return;
+            const preset = savedPresets.find(item => item.id === presetId);
+            if (!preset) return;
+            const confirmed = await confirmDialog({
+                title: 'Eliminar configuración',
+                message: `Se va a borrar la configuración "${preset.name}" y sus pasos guardados.`,
+                confirmLabel: 'Eliminar'
+            });
+            if (!confirmed) return;
+
+            try {
+                await api(`/api/presets/${presetId}`, { method: 'DELETE' });
+                await loadPresets();
+                showToast(`Configuración "${preset.name}" eliminada.`, 'info');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        async function processRestoreStep(operation) {
+            if (state.busy || !state.file) return;
+
+            const params = restoreStepParams(operation);
+            setProcessing(`btn-${operation}`, 'Aplicando paso...');
+
+            try {
+                const id = await ensureUploaded();
+                const out = await apiJson(`/api/photos/${id}/restore/${operation}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(params),
+                });
+
+                setProcessed(
+                    `${out.restored_url}?t=${Date.now()}`,
+                    `${baseName(state.originalName)}_restaurada.png`
+                );
+                state.photoUrl = out.restored_url;
+                state.restored = true;
+                state.restoreHistory.push({
+                    operation,
+                    parameters: out.parameters,
+                    label: out.label,
+                    detail: describeRestoreParams(operation, out.parameters),
+                });
+                state.restoreMetrics = out.metrics;
+                renderRestoreHistory();
+                showToast(`${out.label} aplicado. Podés sumar otro paso o descargar.`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing(`btn-${operation}`);
+            }
+        }
+
+        async function resetRestoration() {
+            if (state.busy) return;
+            if (state.photoId) {
+                // 404 = todavía no había restauración: no hay nada que descartar.
+                await fetch(`/api/gallery/restored/${state.photoId}`, { method: 'DELETE' });
+            }
+            state.restored = false;
+            state.photoUrl = null;
+            state.restoreHistory = [];
+            state.restoreMetrics = null;
+            clearProcessed();
+            renderRestoreHistory();
+            document.getElementById('restore-progress').classList.add('hidden');
+            document.getElementById('progress-list').innerHTML = '';
+            showToast('Restauración descartada. La foto original sigue intacta.', 'info');
+        }
+
+        async function processRestore() {
+            if (state.busy || !state.file) return;
+            setProcessing('btn-restore', 'Restaurando...');
+
+            const progressContainer = document.getElementById('restore-progress');
+            const progressList = document.getElementById('progress-list');
+            progressContainer.classList.remove('hidden');
+            progressList.innerHTML = `
+                <li class="flex items-center gap-2 text-neutral-400">
+                    <div class="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
+                    <span>Procesando pasos...</span>
+                </li>`;
+
+            try {
+                const id = await ensureUploaded();
+                const form = new FormData();
+                form.append('denoise', 'auto');
+                form.append('scratches', 'true');
+                form.append('contrast', 'true');
+                const out = await apiJson(`/api/photos/${id}/restore`, { method: 'POST', body: form });
+
+                renderSteps(out.steps);
+                state.restoreHistory = out.steps
+                    .filter(step => step.status === 'done')
+                    .map(step => ({ label: step.label, detail: 'automático' }));
+                state.restoreMetrics = null;
+                renderRestoreHistory();
+                if (out.restored_url) {
+                    setProcessed(
+                        `${out.restored_url}?t=${Date.now()}`,
+                        `${baseName(state.originalName)}_restaurada.png`
+                    );
+                    state.photoUrl = out.restored_url;
+                    state.restored = true;
+                }
+                showToast(
+                    out.complete ? 'Las tres herramientas se aplicaron desde el original.' : 'Restauración terminada; hay pasos pendientes.',
+                    out.complete ? 'success' : 'info'
+                );
+            } catch (err) {
+                progressList.innerHTML = '';
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-restore');
+            }
+        }
+
+        async function processRetro() {
+            if (state.busy || !state.file) return;
+
+            const palette = document.getElementById('retro-palette').value;
+            if (!palette) {
+                showToast('Elegí una paleta para el estilo retro.', 'info');
+                return;
+            }
+            const dithering = document.getElementById('opt-dither').checked;
+
+            setProcessing('btn-retro', 'Cuantizando colores...');
+
+            try {
+                const id = await ensureUploaded();
+                const form = new FormData();
+                form.append('palette', palette);
+                form.append('dithering', String(dithering));
+                const out = await apiJson(`/api/photos/${id}/retro`, { method: 'POST', body: form });
+
+                setProcessed(
+                    `${out.url}?t=${Date.now()}`,
+                    `${baseName(state.originalName)}_retro.png`
+                );
+                state.photoUrl = out.url;
+                showToast(`Estilo ${out.palette_label} aplicado y guardado en la galería.`, 'success');
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                stopProcessing('btn-retro');
+            }
+        }
+
+        function renderSteps(steps) {
+            const progressList = document.getElementById('progress-list');
+            if (!steps.length) {
+                progressList.innerHTML = '<li class="text-neutral-500">Sin pasos activos.</li>';
+                return;
+            }
+            progressList.innerHTML = steps.map((step) => {
+                const color = step.status === 'done' ? 'text-emerald-400'
+                    : step.status === 'failed' ? 'text-red-400'
+                    : 'text-neutral-500';
+                const icon = step.status === 'done'
+                    ? '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                    : step.status === 'failed'
+                    ? '<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+                    : '<span class="w-4 h-4 shrink-0 text-center leading-4">·</span>';
+                const message = step.message ? ` — ${escapeHtml(step.message)}` : '';
+                return `<li class="flex items-start gap-2 ${color}">${icon}<span>${escapeHtml(step.label)}${message}</span></li>`;
+            }).join('');
+        }
+
+        // --- UI Helpers ---
+
+        function setProcessing(btnId, overlayMsg) {
+            state.busy = true;
+            const btn = document.getElementById(btnId);
+            const content = btn.querySelector('.btn-content');
+            const loader = btn.querySelector('.btn-loader');
+            if (content) content.classList.add('opacity-0');
+            if (loader) loader.classList.remove('hidden');
+            btn.disabled = true;
+
+            DOM.overlayText.textContent = overlayMsg;
+            DOM.overlay.classList.remove('hidden');
+        }
+
+        function stopProcessing(btnId) {
+            state.busy = false;
+            const btn = document.getElementById(btnId);
+            const content = btn.querySelector('.btn-content');
+            const loader = btn.querySelector('.btn-loader');
+            if (content) content.classList.remove('opacity-0');
+            if (loader) loader.classList.add('hidden');
+            btn.disabled = false;
+
+            DOM.overlay.classList.add('hidden');
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>

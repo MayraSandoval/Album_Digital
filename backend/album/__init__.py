@@ -9,24 +9,39 @@ Estructura del core:
 - quality.py ........ Métricas y diagnóstico de calidad.
 - restoration.py .... Los pasos de restauración.
 - descriptors.py .... Hash perceptual y descriptores de color.
+- retro.py .......... Estilo retro: paletas fijas, cuantización y dithering.
 
 """
 
 from album.exceptions import AlbumError, DocumentNotFound, InvalidImage, NotImplementedYet
 from album.imageio import ImageInfo, decode, encode_png, inspect, limit_side, to_pil
 from album.pipeline import RestorationOptions, RestorationPipeline, Step, StepResult, Trace
+from album.retro import (
+    DEFAULT_PALETTE,
+    PALETTES,
+    Palette,
+    RetroOptions,
+    UnknownPalette,
+    apply_retro,
+)
 
 __all__ = [
     "AlbumError",
+    "DEFAULT_PALETTE",
     "DocumentNotFound",
     "ImageInfo",
     "InvalidImage",
     "NotImplementedYet",
+    "PALETTES",
+    "Palette",
     "RestorationOptions",
     "RestorationPipeline",
+    "RetroOptions",
     "Step",
     "StepResult",
     "Trace",
+    "UnknownPalette",
+    "apply_retro",
     "decode",
     "encode_png",
     "inspect",

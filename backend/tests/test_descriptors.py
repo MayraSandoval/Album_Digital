@@ -1,4 +1,4 @@
-"""Test para la Parte 4: descriptores (album/descriptors.py)."""
+"""Tests para la parte 4: descriptores (album/descriptors.py)."""
 
 from __future__ import annotations
 
@@ -44,8 +44,9 @@ def test_histograma_normalizado():
 def test_distancia_de_histogramas():
     hist_a = descriptors.color_histogram(IMG)
     assert descriptors.histogram_distance(hist_a, hist_a) == pytest.approx(0.0, abs=1e-9)
-    inverted = 255 - IMG
-    assert descriptors.histogram_distance(hist_a, descriptors.color_histogram(inverted)) > 1.0
+    # Un color liso bien distinto ocupa casi otras cubetas del histograma.
+    different = synth.solid(rgb=(40, 160, 40))
+    assert descriptors.histogram_distance(hist_a, descriptors.color_histogram(different)) > 1.0
 
 
 def test_color_fraction_acierta_el_color():
