@@ -245,3 +245,34 @@ class GalleryItemOut(BaseModel):
         default=None, description="Foto del álbum de la que salió la restauración o el estilo retro"
     )
     url: str
+
+
+class ScrapbookPhotoIn(BaseModel):
+    """Una foto que el usuario elige de la galería para sumar al álbum."""
+
+    source_kind: Literal["original", "scanned", "restored", "retro"]
+    source_id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=60, description="Nombre que verá en el álbum")
+
+    @field_validator("name")
+    @classmethod
+    def _nombre_no_vacio(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("el nombre no puede estar vacío")
+        return value
+
+
+class ScrapbookPhotoOut(BaseModel):
+    id: str
+    name: str
+    kind: Literal["original", "scanned", "restored", "retro"]
+    source_id: str
+    width: int
+    height: int
+    added: str
+    url: str
+
+
+class ScrapbookOut(BaseModel):
+    photos: list[ScrapbookPhotoOut]

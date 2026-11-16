@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import FRONTEND_DIR, MEDIA_URL, PHOTOS_DIR, RESTORED_DIR, RETRO_DIR, SCANNED_DIR, STORAGE_DIR
 from app.errors import register_exception_handlers
-from app.routers import gallery, photos, presets, restore, retro, scan, search
+from app.routers import gallery, photos, presets, restore, retro, scan, scrapbook, search
 
 
 @asynccontextmanager
@@ -50,6 +50,7 @@ app.include_router(restore.router)
 app.include_router(retro.router)
 app.include_router(scan.router)
 app.include_router(search.router)
+app.include_router(scrapbook.router)
 app.include_router(gallery.router)
 
 # Archivos de fotos en disco.

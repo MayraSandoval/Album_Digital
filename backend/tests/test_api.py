@@ -36,8 +36,10 @@ def _clear_album(client):
         client.delete(f"/api/photos/{photo['id']}")
     for item in client.get("/api/gallery").json():
         client.delete(f"/api/gallery/{item['kind']}/{item['id']}")
+    client.delete("/api/scrapbook")
     assert client.get("/api/photos").json() == []
     assert client.get("/api/gallery").json() == []
+    assert client.get("/api/scrapbook").json()["photos"] == []
 
 
 def _upload(client, image: np.ndarray) -> dict:
@@ -711,3 +713,116 @@ def test_borrar_foto_borra_sus_retros(client):
 
     assert not any(path.exists() for path in paths)
     assert _retro_items(client, body["id"]) == []
+
+
+def test_album_de_recuerdos_guarda_el_nombre(client):
+    _clear_album(client)
+    body = _upload(client, synth.photo(seed=201))
+
+    created = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": body["id"], "name": "  Recién salido del cascarón  "},
+    )
+    assert created.status_code == 201, created.text
+    photo = created.json()
+    assert photo["name"] == "Recién salido del cascarón"
+    assert photo["kind"] == "original" and photo["source_id"] == body["id"]
+    assert photo["url"] == body["url"]
+
+    book = client.get("/api/scrapbook").json()
+    assert [item["name"] for item in book["photos"]] == ["Recién salido del cascarón"]
+    assert client.get(photo["url"]).status_code == 200
+
+
+def test_album_acepta_fotos_de_toda_la_galeria(client):
+    _clear_album(client)
+    body = _upload(client, synth.photo(seed=202))
+    restored = client.post(f"/api/photos/{body['id']}/restore/denoise", json={"method": "median"}).json()
+
+    original = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": body["id"], "name": "El original"},
+    )
+    assert original.status_code == 201, original.text
+
+    restaurada = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "restored", "source_id": body["id"], "name": "La restaurada"},
+    )
+    assert restaurada.status_code == 201, restaurada.text
+    assert restaurada.json()["url"] == restored["restored_url"]
+    assert restaurada.json()["kind"] == "restored"
+
+    names = [item["name"] for item in client.get("/api/scrapbook").json()["photos"]]
+    assert names == ["El original", "La restaurada"]
+
+
+def test_album_valida_origen_nombre_y_duplicados(client):
+    _clear_album(client)
+    body = _upload(client, synth.photo(seed=203))
+
+    vacio = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": body["id"], "name": "   "},
+    )
+    assert vacio.status_code == 422
+
+    inexistente = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": "no-existe", "name": "Fantasma"},
+    )
+    assert inexistente.status_code == 404
+
+    kind_invalido = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "otra", "source_id": body["id"], "name": "Prueba"},
+    )
+    assert kind_invalido.status_code == 422
+
+    primero = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": body["id"], "name": "Una foto"},
+    )
+    assert primero.status_code == 201
+    repetido = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": body["id"], "name": "Otra vez"},
+    )
+    assert repetido.status_code == 409
+
+
+def test_album_quita_fotos_y_se_vacia(client):
+    _clear_album(client)
+    first = _upload(client, synth.photo(seed=204))
+    second = _upload(client, synth.photo(seed=205))
+
+    one = client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": first["id"], "name": "Primera"},
+    ).json()
+    client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": second["id"], "name": "Segunda"},
+    )
+
+    assert client.delete(f"/api/scrapbook/photos/{one['id']}").status_code == 204
+    names = [item["name"] for item in client.get("/api/scrapbook").json()["photos"]]
+    assert names == ["Segunda"]
+    assert client.delete(f"/api/scrapbook/photos/{one['id']}").status_code == 404
+
+    assert client.delete("/api/scrapbook").status_code == 204
+    assert client.get("/api/scrapbook").json()["photos"] == []
+    assert client.get(f"/api/photos/{second['id']}").status_code == 200
+
+
+def test_album_descarta_fotos_que_ya_no_existen(client):
+    _clear_album(client)
+    body = _upload(client, synth.photo(seed=206))
+    client.post(
+        "/api/scrapbook/photos",
+        json={"source_kind": "original", "source_id": body["id"], "name": "Se va a borrar"},
+    )
+    assert len(client.get("/api/scrapbook").json()["photos"]) == 1
+
+    assert client.delete(f"/api/photos/{body['id']}").status_code == 204
+    assert client.get("/api/scrapbook").json()["photos"] == []

@@ -33,9 +33,10 @@ Las fotos se guardan en `backend/storage/` (no se sube al repositorio):
 | `storage/restored/` | Todo lo que pasó por **Restauración** |
 | `storage/retro/` | Todo lo que pasó por **4. Estilo retro** |
 
-La galería junta ambas carpetas y las muestra separadas por tipo. La página de
-búsqueda recorre los originales de `storage/photos/` con histogramas HSV y el
-hash perceptual.
+La galería junta las tres carpetas y las muestra separadas por tipo. La página
+de búsqueda recorre **todas las carpetas** de `storage/` (originales,
+digitalizadas, restauradas y retro) con histogramas HSV, e indica el tipo de
+cada resultado.
 
 ## Línea de comandos
 

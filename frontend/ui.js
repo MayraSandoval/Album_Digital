@@ -110,6 +110,7 @@
             font-size: 0.875rem; font-weight: 500; cursor: pointer;
             transition: background 0.15s ease, border-color 0.15s ease;
         }
+        .ui-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .ui-btn:focus-visible, .ui-toast__close:focus-visible {
             outline: 2px solid #818cf8; outline-offset: 2px;
         }
@@ -117,8 +118,30 @@
         .ui-btn--ghost:hover { background: #262626; }
         .ui-btn--danger { background: #dc2626; color: #fff; font-weight: 600; }
         .ui-btn--danger:hover { background: #ef4444; }
-        .ui-btn--primary { background: #4f46e5; color: #fff; font-weight: 600; }
-        .ui-btn--primary:hover { background: #6366f1; }
+        .ui-btn--primary {
+            background-image: linear-gradient(120deg, #38bdf8 0%, #6366f1 48%, #a855f7 100%);
+            background-size: 160% 160%; background-position: 0% 50%;
+            color: #fff; font-weight: 600;
+            transition: background-position 0.3s ease, filter 0.15s ease;
+        }
+        .ui-btn--primary:hover { background-position: 100% 50%; }
+        .ui-dialog__field { margin-top: 1rem; }
+        .ui-dialog__label {
+            display: block; margin-bottom: 0.375rem;
+            font-size: 0.65rem; font-weight: 700; letter-spacing: 0.16em;
+            text-transform: uppercase; color: #a5b4fc;
+        }
+        .ui-input {
+            width: 100%; padding: 0.6rem 0.75rem; border-radius: 0.55rem;
+            border: 1px solid #404040; background: #0f0f12; color: #f5f5f5;
+            font-size: 0.9rem; font-family: inherit;
+        }
+        .ui-input::placeholder { color: #737373; }
+        .ui-input:focus {
+            outline: none; border-color: #818cf8;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+        }
+        .ui-dialog__hint { margin: 0.5rem 0 0; font-size: 0.72rem; line-height: 1.4; color: #737373; }
     `;
 
     if (!document.getElementById('ui-styles')) {
@@ -270,6 +293,131 @@
         });
     }
 
+    function promptDialog({
+        title = 'Guardar',
+        message = '',
+        label = 'Nombre',
+        value = '',
+        placeholder = '',
+        maxlength = 60,
+        hint = '',
+        confirmLabel = 'Guardar',
+        cancelLabel = 'Cancelar'
+    } = {}) {
+        return new Promise((resolve) => {
+            let closed = false;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'ui-overlay';
+
+            const dialog = document.createElement('div');
+            dialog.className = 'ui-dialog';
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+            dialog.setAttribute('aria-labelledby', 'ui-dialog-title');
+            if (message) dialog.setAttribute('aria-describedby', 'ui-dialog-text');
+
+            const head = document.createElement('div');
+            head.className = 'ui-dialog__head';
+            const badge = document.createElement('span');
+            badge.className = 'ui-dialog__badge ui-dialog__badge--info';
+            badge.innerHTML = svg(ICONS.info, 20);
+            const heading = document.createElement('h2');
+            heading.id = 'ui-dialog-title';
+            heading.className = 'ui-dialog__title';
+            heading.textContent = title;
+            head.append(badge, heading);
+
+            const field = document.createElement('div');
+            field.className = 'ui-dialog__field';
+            const labelNode = document.createElement('label');
+            labelNode.className = 'ui-dialog__label';
+            labelNode.htmlFor = 'ui-dialog-input';
+            labelNode.textContent = label;
+            const input = document.createElement('input');
+            input.id = 'ui-dialog-input';
+            input.className = 'ui-input';
+            input.type = 'text';
+            input.maxLength = maxlength;
+            input.placeholder = placeholder;
+            input.value = value;
+            field.append(labelNode, input);
+
+            const hintNode = document.createElement('p');
+            hintNode.className = 'ui-dialog__hint';
+            hintNode.textContent = hint;
+            if (hint) field.append(hintNode);
+
+            const actions = document.createElement('div');
+            actions.className = 'ui-dialog__actions';
+
+            const cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'ui-btn ui-btn--ghost';
+            cancel.textContent = cancelLabel;
+
+            const accept = document.createElement('button');
+            accept.type = 'button';
+            accept.className = 'ui-btn ui-btn--primary';
+            accept.textContent = confirmLabel;
+            accept.disabled = !value.trim();
+
+            function close(result) {
+                if (closed) return;
+                closed = true;
+                document.removeEventListener('keydown', onKey);
+                document.body.classList.remove('overflow-hidden');
+                overlay.classList.add('is-closing');
+                setTimeout(() => {
+                    overlay.remove();
+                    resolve(result);
+                }, 150);
+            }
+
+            function submit() {
+                const name = input.value.trim();
+                if (name) close(name);
+            }
+
+            function onKey(event) {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    close(null);
+                } else if (event.key === 'Enter' && document.activeElement === input) {
+                    event.preventDefault();
+                    submit();
+                }
+            }
+
+            input.addEventListener('input', () => {
+                accept.disabled = !input.value.trim();
+            });
+            cancel.addEventListener('click', () => close(null));
+            accept.addEventListener('click', submit);
+            overlay.addEventListener('mousedown', (event) => {
+                if (event.target === overlay) close(null);
+            });
+            document.addEventListener('keydown', onKey);
+
+            actions.append(cancel, accept);
+            dialog.append(head);
+            if (message) {
+                const text = document.createElement('p');
+                text.id = 'ui-dialog-text';
+                text.className = 'ui-dialog__text';
+                text.textContent = message;
+                dialog.append(text);
+            }
+            dialog.append(field, actions);
+            overlay.append(dialog);
+            document.body.append(overlay);
+            document.body.classList.add('overflow-hidden');
+            input.focus();
+            input.select();
+        });
+    }
+
     window.showToast = showToast;
     window.confirmDialog = confirmDialog;
+    window.promptDialog = promptDialog;
 })();

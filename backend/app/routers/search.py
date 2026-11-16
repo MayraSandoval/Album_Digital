@@ -4,15 +4,14 @@ from fastapi import APIRouter, HTTPException, Query
 
 from album import decode, descriptors
 from app.album import Album
-from app.config import MEDIA_URL, STORAGE_DIR
+from app.catalog import ORIGINAL, catalog, media_url
+from app.config import STORAGE_DIR
 from app.gallery import Gallery
 from app.schemas import ColorMatchOut, ErrorOut, SearchPhotoOut, SimilarMatchOut
 
 router = APIRouter(prefix="/api/search", tags=["búsqueda"])
 album = Album(STORAGE_DIR)
 gallery = Gallery(STORAGE_DIR)
-
-ORIGINAL = "original"
 
 ERRORS = {422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
@@ -29,8 +28,7 @@ def _parse_hex(hex_color: str) -> tuple[int, int, int]:
 
 def _catalog() -> list[dict]:
     """Todas las imágenes de storage/: originales, digitalizadas, restauradas y retro."""
-    originals = [{**entry, "kind": ORIGINAL, "folder": "photos"} for entry in album.all()]
-    return originals + gallery.all_with_legacy(album.all())
+    return catalog(album, gallery)
 
 
 def _read(item: dict):
@@ -44,7 +42,7 @@ def _match_out(item: dict) -> SearchPhotoOut:
         width=item["width"],
         height=item["height"],
         created=item["created"],
-        url=f"{MEDIA_URL}/{item['folder']}/{item['filename']}",
+        url=media_url(item),
         source_id=item.get("source_id"),
     )
 
