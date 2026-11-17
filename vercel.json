@@ -7,10 +7,7 @@
       "entrypoint": "main:app",
       "functions": {
         "main.py": {
-          "includeFiles": [
-            "backend/**",
-            "frontend/**"
-          ]
+          "includeFiles": "**"
         }
       }
     }
