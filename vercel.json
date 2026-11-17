@@ -1,15 +1,21 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/index.py": {
-      "includeFiles": [
-        "backend/album/**",
-        "backend/app/**",
-        "frontend/**"
-      ]
+  "services": {
+    "album": {
+      "root": ".",
+      "framework": "fastapi",
+      "entrypoint": "main:app",
+      "functions": {
+        "main.py": {
+          "includeFiles": [
+            "backend/**",
+            "frontend/**"
+          ]
+        }
+      }
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
+    { "source": "/(.*)", "destination": { "service": "album" } }
   ]
 }
