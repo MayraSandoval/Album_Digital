@@ -457,6 +457,7 @@
             processedUrl: null,      // URL de la versión procesada (object URL o servidor)
             processedObjectUrl: false,
             processedName: null,     // nombre sugerido al descargar
+            downloadObjectUrl: null,
             photoId: null,           // id en el álbum; null = todavía no se subió
             photoUrl: null,          // URL del servidor de la foto actual
             busy: false,
@@ -629,25 +630,70 @@
             return (name || 'foto').replace(/\.[^.]+$/, '') || 'foto';
         }
 
+        let processedVersion = 0;
+
         function setProcessed(url, name, { fromObjectUrl = false } = {}) {
+            const version = ++processedVersion;
             if (state.processedObjectUrl) revokeObjectUrl(state.processedUrl);
+            revokeObjectUrl(state.downloadObjectUrl);
             state.processedUrl = url;
             state.processedObjectUrl = fromObjectUrl;
             state.processedName = name;
+            state.downloadObjectUrl = null;
+            DOM.download.removeAttribute('href');
+            DOM.download.classList.add('opacity-40', 'pointer-events-none');
+            DOM.download.setAttribute('aria-disabled', 'true');
+            DOM.download.download = name;
+
+            DOM.processedImage.onload = () => {
+                if (version !== processedVersion) return;
+                if (fromObjectUrl) {
+                    DOM.download.href = url;
+                    DOM.download.classList.remove('opacity-40', 'pointer-events-none');
+                    DOM.download.setAttribute('aria-disabled', 'false');
+                    return;
+                }
+
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = DOM.processedImage.naturalWidth;
+                    canvas.height = DOM.processedImage.naturalHeight;
+                    canvas.getContext('2d').drawImage(DOM.processedImage, 0, 0);
+                    canvas.toBlob(blob => {
+                        if (version !== processedVersion) return;
+                        if (!blob) {
+                            showToast('No se pudo preparar la imagen para descargarla.', 'error');
+                            return;
+                        }
+                        state.downloadObjectUrl = URL.createObjectURL(blob);
+                        DOM.download.href = state.downloadObjectUrl;
+                        DOM.download.classList.remove('opacity-40', 'pointer-events-none');
+                        DOM.download.setAttribute('aria-disabled', 'false');
+                    }, 'image/png');
+                } catch (_) {
+                    showToast('No se pudo preparar la imagen para descargarla.', 'error');
+                }
+            };
+            DOM.processedImage.onerror = () => {
+                if (version === processedVersion) {
+                    showToast('No se pudo cargar la imagen procesada para descargarla.', 'error');
+                }
+            };
             DOM.processedImage.src = url;
             DOM.processedImage.classList.remove('hidden');
             DOM.processedPlaceholder.classList.add('hidden');
-            DOM.download.href = url;
-            DOM.download.download = name;
-            DOM.download.classList.remove('opacity-40', 'pointer-events-none');
-            DOM.download.setAttribute('aria-disabled', 'false');
         }
 
         function clearProcessed() {
+            processedVersion++;
             if (state.processedObjectUrl) revokeObjectUrl(state.processedUrl);
+            revokeObjectUrl(state.downloadObjectUrl);
             state.processedUrl = null;
             state.processedObjectUrl = false;
             state.processedName = null;
+            state.downloadObjectUrl = null;
+            DOM.processedImage.onload = null;
+            DOM.processedImage.onerror = null;
             DOM.processedImage.removeAttribute('src');
             DOM.processedImage.classList.add('hidden');
             DOM.processedPlaceholder.classList.remove('hidden');
@@ -656,7 +702,33 @@
             DOM.download.setAttribute('aria-disabled', 'true');
         }
 
+        let fileSelectionVersion = 0;
+
+        async function prepareWorkingFile(file) {
+            const image = await createImageBitmap(file);
+            try {
+                const maxSide = 1000;
+                const maxBytes = 4 * 1024 * 1024;
+                const longest = Math.max(image.width, image.height);
+                if (longest <= maxSide && file.size <= maxBytes) return file;
+
+                const scale = Math.min(1, maxSide / longest);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(image.width * scale));
+                canvas.height = Math.max(1, Math.round(image.height * scale));
+                canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if (!blob || blob.size > maxBytes) {
+                    throw new Error('No se pudo reducir la foto lo suficiente para subirla.');
+                }
+                return new File([blob], `${baseName(file.name)}_reducida.png`, { type: 'image/png' });
+            } finally {
+                image.close();
+            }
+        }
+
         async function handleFile(file) {
+            const selection = ++fileSelectionVersion;
             if (!file.type.startsWith('image/')) {
                 showToast('Por favor subí un archivo de imagen válido.', 'error');
                 return;
@@ -666,10 +738,24 @@
                 return;
             }
 
+            let workingFile;
+            try {
+                workingFile = await prepareWorkingFile(file);
+            } catch (error) {
+                if (selection === fileSelectionVersion) {
+                    const message = error instanceof DOMException
+                        ? 'No se pudo abrir la imagen.'
+                        : error.message || 'No se pudo preparar la imagen.';
+                    showToast(message, 'error');
+                }
+                return;
+            }
+            if (selection !== fileSelectionVersion) return;
+
             if (state.originalUrl) revokeObjectUrl(state.originalUrl);
             clearProcessed();
 
-            state.file = file;
+            state.file = workingFile;
             state.originalName = file.name;
             state.originalUrl = URL.createObjectURL(file);
             state.photoId = null;
@@ -691,10 +777,14 @@
             renderRestoreHistory();
 
             enableTools();
-            showToast(`Foto cargada: ${file.name}`, 'info');
+            const message = workingFile === file
+                ? `Foto cargada: ${file.name}`
+                : 'Foto cargada. Se preparó una copia de hasta 1000 píxeles para procesarla.';
+            showToast(message, 'info');
         }
 
         function resetWorkspace() {
+            fileSelectionVersion++;
             if (state.originalUrl) revokeObjectUrl(state.originalUrl);
             clearProcessed();
             state = {
@@ -704,6 +794,7 @@
                 processedUrl: null,
                 processedObjectUrl: false,
                 processedName: null,
+                downloadObjectUrl: null,
                 photoId: null,
                 photoUrl: null,
                 busy: false,
