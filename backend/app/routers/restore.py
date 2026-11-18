@@ -5,10 +5,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Form, HTTPException
 
-from app.album import Album
-from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
-from app.gallery import Gallery
-from app.presets import PresetStore
+from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_BACKEND, STORAGE_DIR
 from app.schemas import (
     AppliedPresetStepOut,
     ContrastIn,
@@ -24,13 +21,11 @@ from app.schemas import (
     WhiteBalanceIn,
 )
 from app.steps import build_step
+from app.stores import album, gallery, presets, read_media
 from album import RestorationOptions, RestorationPipeline, decode, encode_png
 from album.quality import diagnose, mse, psnr
 
 router = APIRouter(prefix="/api/photos", tags=["restauración"])
-album = Album(STORAGE_DIR)
-gallery = Gallery(STORAGE_DIR)
-presets = PresetStore(STORAGE_DIR)
 pipeline = RestorationPipeline()
 
 ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
@@ -54,12 +49,23 @@ def _photo(photo_id: str) -> dict:
 
 def _current_image(entry: dict):
     """El paso manual trabaja sobre el último resultado, no sobre el original."""
-    restored = STORAGE_DIR / "restored" / f"{entry['id']}.png"
-    if restored.exists():
-        return decode(restored.read_bytes())
-    legacy = PHOTOS_DIR / f"{entry['id']}_restored.png"
-    if legacy.exists():
-        return decode(legacy.read_bytes())
+    if STORAGE_BACKEND == "supabase":
+        restored = next(
+            (item for item in gallery.all() if item["kind"] == "restored" and item["source_id"] == entry["id"]),
+            None,
+        )
+        if restored is not None:
+            data = read_media(restored["folder"], restored["filename"])
+            if data is None:
+                raise FileNotFoundError("No se encontró la imagen restaurada.")
+            return decode(data)
+    else:
+        restored = STORAGE_DIR / "restored" / f"{entry['id']}.png"
+        if restored.exists():
+            return decode(restored.read_bytes())
+        legacy = PHOTOS_DIR / f"{entry['id']}_restored.png"
+        if legacy.exists():
+            return decode(legacy.read_bytes())
     return album.read_image(entry)
 
 

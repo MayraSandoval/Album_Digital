@@ -116,12 +116,12 @@ class Album:
 
     # ------------------------------------------------------------- duplicados
 
-    def duplicates_of(self, entry: dict) -> list[dict]:
+    def duplicates_of(self, entry: dict, entries: list[dict] | None = None) -> list[dict]:
         phash = entry.get("phash")
         if phash is None:
             return []
         found = []
-        for other in self._load():
+        for other in entries if entries is not None else self._load():
             if other["id"] == entry["id"] or other.get("phash") is None:
                 continue
             if hamming(phash, other["phash"]) <= DUPLICATE_BITS:

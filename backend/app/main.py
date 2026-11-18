@@ -5,20 +5,24 @@ Sirve el frontend y la API; el procesamiento vive en el paquete `album`
 """
 
 from contextlib import asynccontextmanager
+import re
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.config import FRONTEND_DIR, MEDIA_URL, PHOTOS_DIR, RESTORED_DIR, RETRO_DIR, SCANNED_DIR, STORAGE_DIR
+from app.config import FRONTEND_DIR, MEDIA_URL, PHOTOS_DIR, RESTORED_DIR, RETRO_DIR, SCANNED_DIR, STORAGE_BACKEND, STORAGE_DIR
 from app.errors import register_exception_handlers
 from app.routers import gallery, photos, presets, restore, retro, scan, scrapbook, search
+from app.stores import read_media
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR, RETRO_DIR):
-        folder.mkdir(parents=True, exist_ok=True)
+    if STORAGE_BACKEND == "local":
+        for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR, RETRO_DIR):
+            folder.mkdir(parents=True, exist_ok=True)
     yield
 
 
@@ -53,10 +57,27 @@ app.include_router(search.router)
 app.include_router(scrapbook.router)
 app.include_router(gallery.router)
 
-# Archivos de fotos en disco.
-for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR, RETRO_DIR):
-    folder.mkdir(parents=True, exist_ok=True)
-app.mount(MEDIA_URL, StaticFiles(directory=STORAGE_DIR), name="media")
+if STORAGE_BACKEND == "local":
+    for folder in (PHOTOS_DIR, SCANNED_DIR, RESTORED_DIR, RETRO_DIR):
+        folder.mkdir(parents=True, exist_ok=True)
+    app.mount(MEDIA_URL, StaticFiles(directory=STORAGE_DIR), name="media")
+else:
+    from app.supabase_client import SupabaseError
+
+    @app.exception_handler(SupabaseError)
+    async def supabase_error(request: Request, exc: SupabaseError) -> JSONResponse:
+        return JSONResponse(status_code=503, content={"detail": "El almacenamiento no está disponible. Intentá nuevamente."})
+
+    @app.get(f"{MEDIA_URL}/{{folder}}/{{filename}}", include_in_schema=False)
+    def media(folder: str, filename: str):
+        if folder not in {"photos", "scanned", "restored", "retro"} or not re.fullmatch(
+            r"[0-9a-f]{12}(?:_[0-9a-f]{12}|_restored)?\.png", filename
+        ):
+            raise HTTPException(status_code=404, detail="Imagen no encontrada.")
+        data = read_media(folder, filename)
+        if data is None:
+            raise HTTPException(status_code=404, detail="Imagen no encontrada.")
+        return Response(data, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 # El frontend se monta al final porque captura "/".
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")

@@ -6,3 +6,5 @@ backend/storage/
 *.egg-info/
 informe/
 fotos/
+.env
+.env.*

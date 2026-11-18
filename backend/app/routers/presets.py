@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.config import STORAGE_DIR
-from app.presets import PresetStore
 from app.schemas import ErrorOut, PresetIn, PresetOut
+from app.stores import presets as store
 
 router = APIRouter(prefix="/api/presets", tags=["restauración"])
-store = PresetStore(STORAGE_DIR)
 
 ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}}
 

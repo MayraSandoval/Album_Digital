@@ -1,17 +1,16 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Response
 
-from app.album import Album
-from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
-from app.gallery import RESTORED, RETRO, SCANNED, Gallery
+from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_BACKEND
+from app.gallery import RESTORED, RETRO, SCANNED
 from app.schemas import ErrorOut, GalleryItemOut
+from app.stores import album, gallery, scrapbook
 
 router = APIRouter(prefix="/api/gallery", tags=["galería"])
-gallery = Gallery(STORAGE_DIR)
-album = Album(STORAGE_DIR)
 
 
 def _item_out(entry: dict) -> GalleryItemOut:
@@ -43,6 +42,13 @@ def list_gallery():
     responses={404: {"model": ErrorOut}},
 )
 def delete_gallery_item(kind: Literal["scanned", "restored", "retro"], item_id: str):
+    if STORAGE_BACKEND == "supabase" and any(
+        item["kind"] == kind and item["id"] == item_id for item in gallery.all()
+    ):
+        scrapbook.remove_source(kind, item_id)
+        if kind == RESTORED:
+            album.clear_restored(item_id)
+
     if kind == SCANNED:
         if not gallery.remove_scanned(item_id):
             raise HTTPException(
@@ -58,10 +64,11 @@ def delete_gallery_item(kind: Literal["scanned", "restored", "retro"], item_id: 
         return Response(status_code=204)
 
     removed = gallery.remove_restored(item_id)
-    legacy = PHOTOS_DIR / f"{item_id}_restored.png"
-    if legacy.exists():
-        legacy.unlink()
-        removed = True
+    if STORAGE_BACKEND == "local" and re.fullmatch(r"[0-9a-f]{12}", item_id):
+        legacy = PHOTOS_DIR / f"{item_id}_restored.png"
+        if legacy.exists():
+            legacy.unlink()
+            removed = True
     if not removed:
         raise HTTPException(
             status_code=404, detail=f"No hay ninguna foto restaurada con id {item_id} en la galería."

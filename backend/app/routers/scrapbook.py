@@ -2,17 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Response
 
-from app.album import Album
 from app.catalog import find, media_url
-from app.config import STORAGE_DIR
-from app.gallery import Gallery
-from app.scrapbook import Scrapbook
 from app.schemas import ErrorOut, ScrapbookOut, ScrapbookPhotoIn, ScrapbookPhotoOut
+from app.stores import album, gallery, scrapbook
 
 router = APIRouter(prefix="/api/scrapbook", tags=["álbum de recuerdos"])
-album = Album(STORAGE_DIR)
-gallery = Gallery(STORAGE_DIR)
-scrapbook = Scrapbook(STORAGE_DIR)
 
 ERRORS = {404: {"model": ErrorOut}, 409: {"model": ErrorOut}, 422: {"model": ErrorOut}}
 
@@ -26,7 +20,7 @@ def _photo_out(entry: dict) -> ScrapbookPhotoOut:
         width=entry["width"],
         height=entry["height"],
         added=entry["added"],
-        url=f"/media/{entry['folder']}/{entry['filename']}",
+        url=media_url(entry),
     )
 
 

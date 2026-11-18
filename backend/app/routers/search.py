@@ -3,15 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query
 
 from album import decode, descriptors
-from app.album import Album
 from app.catalog import ORIGINAL, catalog, media_url
-from app.config import STORAGE_DIR
-from app.gallery import Gallery
 from app.schemas import ColorMatchOut, ErrorOut, SearchPhotoOut, SimilarMatchOut
+from app.stores import album, gallery, read_media
 
 router = APIRouter(prefix="/api/search", tags=["búsqueda"])
-album = Album(STORAGE_DIR)
-gallery = Gallery(STORAGE_DIR)
 
 ERRORS = {422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
@@ -32,7 +28,10 @@ def _catalog() -> list[dict]:
 
 
 def _read(item: dict):
-    return decode((STORAGE_DIR / item["folder"] / item["filename"]).read_bytes())
+    data = read_media(item["folder"], item["filename"])
+    if data is None:
+        raise FileNotFoundError("No se encontró la imagen del catálogo.")
+    return decode(data)
 
 
 def _match_out(item: dict) -> SearchPhotoOut:

@@ -2,15 +2,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Response, UploadFile
 
-from app.config import STORAGE_DIR
-from app.gallery import Gallery
 from app.schemas import ErrorOut
+from app.stores import gallery
 from app.uploads import read_upload
 from album import decode, encode_png, limit_side
 from album.scanning import Scanner
 
 router = APIRouter(prefix="/api", tags=["digitalización"])
-gallery = Gallery(STORAGE_DIR)
 
 ERRORS = {400: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
