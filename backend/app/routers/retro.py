@@ -4,16 +4,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException
 
-from app.album import Album
-from app.config import MEDIA_URL, STORAGE_DIR
-from app.gallery import Gallery
+from app.config import MEDIA_URL
 from app.schemas import ErrorOut, PaletteOut, RetroOut
+from app.stores import album, gallery
 from album import PALETTES, RetroOptions, apply_retro, encode_png
 from album.retro import DEFAULT_PALETTE, UnknownPalette
 
 router = APIRouter(prefix="/api", tags=["estilo retro"])
-album = Album(STORAGE_DIR)
-gallery = Gallery(STORAGE_DIR)
 
 ERRORS = {404: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 TRUE_VALUES = {"1", "true", "on", "yes"}

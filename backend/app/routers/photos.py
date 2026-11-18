@@ -2,21 +2,18 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, UploadFile
 
-from app.album import Album
-from app.config import MEDIA_URL, PHOTOS_DIR, STORAGE_DIR
-from app.gallery import Gallery
+from app.config import MEDIA_URL, STORAGE_BACKEND
 from app.schemas import ErrorOut, PhotoOut, QualityOut
+from app.stores import album, gallery, scrapbook
 from app.uploads import read_upload
 from album.quality import diagnose
 
 router = APIRouter(prefix="/api/photos", tags=["fotos"])
-album = Album(STORAGE_DIR)
-gallery = Gallery(STORAGE_DIR)
 
 ERRORS = {400: {"model": ErrorOut}, 422: {"model": ErrorOut}, 501: {"model": ErrorOut}}
 
 
-def _photo_out(entry: dict) -> PhotoOut:
+def _photo_out(entry: dict, entries: list[dict] | None = None) -> PhotoOut:
     restored_url = None
     if entry.get("restored"):
         # Restauraciones nuevas: ruta relativa anotada por la galería.
@@ -31,7 +28,7 @@ def _photo_out(entry: dict) -> PhotoOut:
         size_bytes=entry["size_bytes"],
         restored=entry.get("restored", False),
         created=entry["created"],
-        duplicates=[d["id"] for d in album.duplicates_of(entry)],
+        duplicates=[d["id"] for d in album.duplicates_of(entry, entries)],
         url=f"{MEDIA_URL}/photos/{entry['filename']}",
         restored_url=restored_url,
     )
@@ -47,7 +44,8 @@ async def upload_photo(file: UploadFile):
 
 @router.get("", response_model=list[PhotoOut], summary="Listar el álbum")
 def list_photos():
-    return [_photo_out(e) for e in album.all()]
+    entries = album.all()
+    return [_photo_out(entry, entries) for entry in entries]
 
 
 @router.get("/{photo_id}", response_model=PhotoOut, summary="Detalle de una foto", responses={404: {"model": ErrorOut}})
@@ -80,10 +78,14 @@ def diagnose_photo(photo_id: str):
 
 @router.delete("/{photo_id}", status_code=204, summary="Borrar una foto", responses={404: {"model": ErrorOut}})
 def delete_photo(photo_id: str):
-    if not album.delete(photo_id):
+    if album.get(photo_id) is None:
         raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
+    if STORAGE_BACKEND == "supabase":
+        scrapbook.remove_source("original", photo_id)
+        for item in gallery.all():
+            if item.get("source_id") == photo_id:
+                scrapbook.remove_source(item["kind"], item["id"])
     gallery.remove_restored(photo_id)
     gallery.remove_retro(photo_id)
-
-
-_ = PHOTOS_DIR  # se usa vía Album; import explícito para que aparezca en el namespace
+    if not album.delete(photo_id):
+        raise HTTPException(status_code=404, detail=f"No hay ninguna foto con id {photo_id}.")
