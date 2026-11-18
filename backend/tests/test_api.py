@@ -430,6 +430,23 @@ def test_digitalizar_una_foto_impresa(client):
     assert response.headers["content-type"] == "image/png"
 
 
+def test_digitalizar_limita_el_tamano_del_png(client):
+    image, _ = synth.paper_on_table()
+    image = np.repeat(np.repeat(image, 6, axis=0), 6, axis=1)
+    before = {item["id"] for item in client.get("/api/gallery").json()}
+
+    response = client.post("/api/scan", files={"file": ("mesa.png", _png(image), "image/png")})
+
+    assert response.status_code == 200, response.text
+    result = decode(response.content)
+    assert max(result.shape[:2]) == 1000
+    assert len(response.content) < 4 * 1024 * 1024
+    new = [item for item in client.get("/api/gallery").json() if item["kind"] == "scanned" and item["id"] not in before]
+    assert len(new) == 1
+    assert (new[0]["width"], new[0]["height"]) == (result.shape[1], result.shape[0])
+    assert client.get(new[0]["url"]).content == response.content
+
+
 def test_digitalizar_sin_hoja(client):
     response = client.post("/api/scan", files={"file": ("mesa.png", _png(synth.plain()), "image/png")})
     assert response.status_code == 422, response.text

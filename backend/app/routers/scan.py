@@ -29,7 +29,7 @@ async def scan(file: UploadFile):
     """
     data = await read_upload(file)
     image = limit_side(decode(data))
-    warped = Scanner().scan(image)
+    warped = limit_side(Scanner().scan(image), max_side=1000)
     png = encode_png(warped)
     gallery.add_scanned(png, warped.shape[1], warped.shape[0])
     return Response(png, media_type="image/png")
