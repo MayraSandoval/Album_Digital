@@ -1,11 +1,66 @@
-# Álbum digital — Trabajo Final Integrador
+# Álbum Digital BMAS — Trabajo Final Integrador
 
-**Materia:** Técnicas de Procesamiento Digital de Imágenes · 2026
+**Materia:** Técnicas de Procesamiento Digital de Imágenes
+**Año y cuatrimestre de cursada:** 2026 2C
+**Nombres y Apellidos:** Betzabe Mayra, Aldana Sandoval
+**Docente:** Juan Ignacio, Bonini
 
-Digitalizá, restaurá y organizá tu álbum de fotos: la foto impresa de un cajón
+---
+
+## Motivo de la creación de la App
+
+### Resolver un problema cotidiano con fotos impresas
+Digitalizár, restaurár y organizár tu álbum de fotos: la foto impresa de un cajón
 pasa por corrección de perspectiva, se le quita el ruido, se le tapan los
 rasguños, se le realza el contraste, y queda en un álbum donde se detectan
 duplicados y se busca por color o por similitud.
+
+### Integrar todo el temario de la materia
+El proyecto buscó unir en una sola aplicación la mayor parte de los ejercicios y los trabajos prácticos vistos, poniendo especial foco en las unidades de restauración y análisis, 
+en los descriptores y reconocimiento.
+
+### Priorizar técnicas clásicas y medibles
+Elegí construir un núcleo propio en Python y OpenCV en lugar de usar modelos preentrenados de caja negra, para poder justificar cada algoritmo con métricas objetivas (MSE, PSNR, nitidez y ruido). 
+
+---
+
+## Problemáticas encontradas y cómo las resolví
+
+### Procesamiento digital de imágenes
+
+**La restauración automática no funcionaba bien en las fotos**
+A partir de la devolución del docente, se comprobó que una sola pasada automática aplicaba filtros innecesarios y no corregía dominantes de color. 
+
+Se pasó a un esquema de restauración manual paso por paso, con parámetros visibles, métricas antes/después, se creo un botón para volver al original y otro para las configuraciones guardadas (presets) reutilizables. 
+También se sumaron dos pasos nuevos: balance de blancos (gray-world / white-patch) y realce de nitidez (unsharp mask). 
+
+**El escáner fallaba sobre fondos texturados**
+Al probar con fotos reales apoyadas sobre un mantel con textura, Canny no lograba cerrar el borde de la hoja y devolvía un contorno inválido de 10 vértices. 
+
+Se incorporó una segunda pasada de respaldo con GrabCut, fijando la semilla (cv2.setRNGSeed(0)) para garantizar resultados deterministas y descartando cuadriláteros degenerados. 
+
+**El reparador de rasguños borraba la mirada y las cejas**
+En los rostros de la foto, el detector morfológico confundía los brillos pequeños de ojos, párpados y cejas con rayas blancas y los rellenaba con inpainting. 
+
+Se eliminó la dilatación 3×3 y se filtraron los componentes pequeños de la máscara (menores a 50 px o al 0,01 % del área en fotos grandes), logrando tapar las rayas largas sin dañar los rasgos faciales. 
+
+### Despliegue en la nube (Vercel y Supabase)
+
+***Tamaño del paquete excedido (832,54 MB > 500 MB)***
+Al desplegar con includeFiles: "**", Vercel incluía el entorno virtual y cachés internas, superando el límite permitido para funciones Python. 
+
+Se restringió includeFiles únicamente a "{backend,frontend}/**" en vercel.json. 
+
+***Error 413 al subir o recortar fotos grandes***
+Vercel impone un límite de 4,5 MB por solicitud y respuesta, por lo que los archivos originales o el PNG recortado fallaban al enviarse a /api/photos. 
+
+Se implementó una reducción automática en el navegador (máximo 1000 px por lado) sobre una copia de trabajo antes de subirla, y se aplicó el mismo límite al PNG devuelto por el escáner. 
+
+***Pérdida de la galería y fallos de descarga por almacenamiento efímero***
+En Vercel el almacenamiento local vive en /tmp y se borra al reiniciarse la función, lo que hacía fallar la descarga de la imagen procesada y vaciaba la galería. 
+
+Se modificó la descarga para que use una copia ya cargada en el navegador y se integró Supabase Storage (con bucket privado) y PostgreSQL para dar persistencia real a las fotos y a los índices del álbum. 
+
 
 ## Cómo correrlo
 
@@ -19,10 +74,10 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8765
 ```
 
-- Frontend: http://localhost:8765
-- Galería: http://localhost:8765/galeria.html
-- Buscar: http://localhost:8765/buscar.html
-- Documentación de la API: http://localhost:8765/docs
+- **Estudio (Frontend):** http://localhost:8765
+- **Galería:** http://localhost:8765/galeria.html
+- **Álbum de recuerdos:** http://localhost:8765/album.html
+- **Buscar:** http://localhost:8765/buscar.html
 
 Las fotos se guardan en `backend/storage/` (no se sube al repositorio):
 
@@ -31,12 +86,11 @@ Las fotos se guardan en `backend/storage/` (no se sube al repositorio):
 | `storage/photos/` | Los originales subidos, con los que trabajan diagnóstico y restauración |
 | `storage/scanned/` | Todo lo que pasó por **Digitalizar** |
 | `storage/restored/` | Todo lo que pasó por **Restauración** |
-| `storage/retro/` | Todo lo que pasó por **4. Estilo retro** |
+| `storage/retro/` | Todo lo que pasó por **Estilo retro**  (acumulables por paleta) |
+| `album.json`, `gallery.json`, `presets.json`, `scrapbook.json` | Índices de fotos, galería, configuraciones guardadas y álbum de recuerdos |
 
-La galería junta las tres carpetas y las muestra separadas por tipo. La página
-de búsqueda recorre **todas las carpetas** de `storage/` (originales,
-digitalizadas, restauradas y retro) con histogramas HSV, e indica el tipo de
-cada resultado.
+
+La galería muestra los originales y los resultados agrupados por tipo, permite eliminarlos con confirmación sin tocar el original y agregarlos al **Álbum de recuerdos** con un nombre elegido por el usuario. La página de búsqueda recorre **todas las carpetas** de `storage/` con histogramas HSV e indica el tipo de cada resultado.
 
 ## Línea de comandos
 
@@ -48,27 +102,23 @@ python -m album metrics original.png restaurada.png                # MSE y PSNR
 python -m album diagnose foto.jpg                                  # nitidez, ruido y brillo
 ```
 
-## Restauración manual
+## Restauración manual y configuraciones guardadas (Presets)
 
-La herramienta **3. Restauración** del estudio aplica las técnicas por
-separado, como en el TP-1, cada una con sus propios parámetros:
+La herramienta **Restauración** del estudio aplica cada técnica por separado, con parámetros visibles y métricas de control:
 
 | Paso | Qué hace | Parámetros |
 |---|---|---|
-| Quitar ruido | mediana (sal y pimienta) o bilateral (ruido fino) | ventana de la mediana; diámetro y sigma del bilateral |
-| Reparar rasguños | top-hat alargado + umbral Otsu + inpainting | largo del kernel, contraste mínimo, radio y TELEA/NS |
-| Realzar contraste | CLAHE sobre la luminancia | clip limit y grilla de tiles |
-| Balance de blancos | gray-world o white patch + estiramiento del canal L en LAB | método y estiramiento on/off |
-| Realzar nitidez | unsharp mask (original − versión gaussiana) | intensidad y radio del gaussiano |
+| Quitar ruido | Mediana (sal y pimienta) o bilateral (ruido fino) | Ventana de la mediana; diámetro y sigma del bilateral |
+| Reparar rasguños | Top-hat alargado + umbral Otsu + filtrado de componentes + *inpainting* | Largo del kernel, contraste mínimo, radio y método (TELEA/NS) |
+| Realzar contraste | CLAHE sobre el canal L en espacio LAB | Clip limit y grilla de tiles |
+| Balance de blancos | *Gray-world* o *white-patch* + estiramiento del canal L en LAB | Método y estiramiento activado/desactivado |
+| Realzar nitidez | *Unsharp mask* (original − versión gaussiana) | Intensidad y radio (sigma) |
 
-Cada paso trabaja sobre el resultado del paso anterior y reemplaza la
-restauración de esa foto en `storage/restored/`; la foto original nunca se
-modifica. Después de cada paso la API devuelve las métricas frente al
-original (nitidez, ruido, MSE y PSNR), que el panel muestra bajo el historial.
-"Volver al original" descarta la restauración. La versión automática
-(los tres pasos de corrido) sigue disponible en `POST /api/photos/{id}/restore`,
-y los pasos manuales en `POST /api/photos/{id}/restore/denoise`,
-`.../scratches`, `.../contrast`, `.../whitebalance` y `.../sharpen`.
+Cada paso trabaja sobre el resultado del paso anterior y reemplaza la restauración de esa foto en `storage/restored/`; la foto original nunca se modifica. Después de cada paso la API devuelve las métricas frente al original (nitidez, ruido, MSE y PSNR). El botón **Volver al original** descarta la restauración actual.
+
+Además, el usuario puede **guardar la secuencia de pasos aplicada como una configuración (*preset*)** con un nombre propio y reutilizarla en un solo clic sobre fotografías similares (`GET/POST /api/presets`, `DELETE /api/presets/{id}`, `POST /api/photos/{id}/restore/preset/{preset_id}`).
+
+La versión automática (tres pasos encadenados) sigue disponible en `POST /api/photos/{id}/restore`, y los pasos manuales en `POST /api/photos/{id}/restore/{denoise|scratches|contrast|whitebalance|sharpen}`.
 
 ## Estilo retro
 
@@ -90,6 +140,14 @@ Los resultados quedan en `storage/retro/` y se pueden borrar desde la galería
 sin tocar la foto original. La lista de paletas está en `GET /api/retro/palettes`
 y el procesamiento en `POST /api/photos/{id}/retro`.
 
+---
+
+## Álbum de recuerdos
+
+La sección **Álbum** (`album.html`) permite armar un libro digital con portada BMAS y hojas dobles estilo *scrapbook*. Desde la galería se puede agregar cualquier foto (original, digitalizada, restaurada o retro) asignándole un título personalizado. Quitar una foto del álbum o vaciarlo solo elimina la referencia, manteniendo intactos los archivos en la galería (`/api/scrapbook`).
+
+---
+
 ## Tests
 
 ```bash
@@ -98,33 +156,47 @@ pytest -v                                  # todo
 pytest tests/test_scanning.py -v           # de a un módulo por vez
 ```
 
+---
+
 ## Estructura
 
-```
+```text
 album-digital/
 ├── README.md
+├── main.py                     # punto de entrada para Vercel
+├── requirements.txt            # dependencias de producción
+├── vercel.json                 # configuración de despliegue en Vercel
 ├── frontend/
-│   ├── index.html             # estudio: digitalizar, diagnosticar y restaurar
-│   └── galeria.html           # álbum de fotos digitalizadas y restauradas
-│   └── buscar.html            # búsqueda por color y por similitud
+│   ├── index.html              # estudio: digitalizar, diagnosticar, restaurar, presets y retro
+│   ├── galeria.html            # originales y resultados, borrado y alta al álbum
+│   ├── buscar.html             # búsqueda por color y por similitud
+│   ├── album.html              # álbum de recuerdos (portada y hojas dobles)
+│   ├── ui.js                   # toasts y diálogos de confirmación / entrada de texto
+│   ├── theme.js / theme.css    # paleta azul-violeta y estilos compartidos
+│   └── assets/                 # emblema BMAS y favicon
 └── backend/
     ├── requirements.txt
-    ├── app/                    # capa de aplicación (API + almacenamiento)
-    │   ├── main.py             # FastAPI
-    │   ├── routers/            # photos, restore, scan, search, gallery
-    │   ├── gallery.py          # carpetas scanned/ y restored/ + índice
-    │   └── album.py            # índice JSON del álbum
-    ├── album/                  # EL CORE: procesamiento puro, reutilizable
-    │   ├── imageio.py          #   
-    │   ├── pipeline.py         #   
-    │   ├── scanning.py         #   
-    │   ├── quality.py          #   
-    │   ├── restoration.py      #   
-    │   └── descriptors.py      #   
-    │   └── retro.py            # estilo retro: paletas, cuantización y dithering    
-    └── tests/                  # los tests de cada TODO + contrato de la API
+    ├── supabase.sql            # esquema de tablas y bucket privado para Supabase
+    ├── app/                    # capa de aplicación (API REST + almacenamiento)
+    │   ├── main.py             # FastAPI y manejo de errores
+    │   ├── config.py           # rutas y variables de entorno
+    │   ├── schemas.py          # modelos Pydantic
+    │   ├── routers/            # photos, restore, scan, search, gallery, retro, presets, scrapbook
+    │   ├── album.py            # gestión de fotos originales e índice
+    │   ├── gallery.py          # carpetas scanned/, restored/ y retro/
+    │   ├── presets.py          # persistencia de configuraciones guardadas
+    │   ├── scrapbook.py        # persistencia del álbum de recuerdos
+    │   ├── catalog.py          # catálogo unificado para búsqueda y álbum
+    │   └── steps.py            # construcción y validación de pasos de restauración
+    ├── album/                  # EL CORE: procesamiento puro, reutilizable e independiente
+    │   ├── imageio.py          # decodificación, orientación EXIF y utilidades de imagen
+    │   ├── pipeline.py         # contrato de pasos y traza de ejecución
+    │   ├── scanning.py         # detección de esquinas, GrabCut y perspectiva
+    │   ├── quality.py          # MSE, PSNR y diagnóstico de nitidez, ruido y brillo
+    │   ├── restoration.py      # cinco pasos parametrizables de restauración
+    │   ├── descriptors.py      # hash perceptual, histogramas HSV y fracción de color
+    │   └── retro.py            # estilo retro: paletas, cuantización y dithering
+    └── tests/                  # tests unitarios del core, contrato de la API y almacenamiento
 ```
 
-## Integrantes
 
-- Betzabe Mayra, Aldana Sandoval
