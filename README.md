@@ -1,9 +1,9 @@
 # Álbum Digital BMAS — Trabajo Final Integrador
 
-**Materia:** Técnicas de Procesamiento Digital de Imágenes
-**Año y cuatrimestre de cursada:** 2026 2C
-**Nombres y Apellidos:** Betzabe Mayra, Aldana Sandoval
-**Docente:** Juan Ignacio, Bonini
+**Materia:** Técnicas de Procesamiento Digital de Imágenes<br>
+**Año y cuatrimestre de cursada:** 2026 2C<br>
+**Nombres y Apellidos:** Betzabe Mayra, Aldana Sandoval<br>
+**Docente:** Juan Ignacio, Bonini<br>
 
 ---
 
@@ -28,35 +28,35 @@ Elegí construir un núcleo propio en Python y OpenCV en lugar de usar modelos p
 
 ### Procesamiento digital de imágenes
 
-**La restauración automática no funcionaba bien en las fotos**
+**La restauración automática no funcionaba bien en las fotos**<br>
 A partir de la devolución del docente, se comprobó que una sola pasada automática aplicaba filtros innecesarios y no corregía dominantes de color. 
 
 Se pasó a un esquema de restauración manual paso por paso, con parámetros visibles, métricas antes/después, se creo un botón para volver al original y otro para las configuraciones guardadas (presets) reutilizables. 
 También se sumaron dos pasos nuevos: balance de blancos (gray-world / white-patch) y realce de nitidez (unsharp mask). 
 
-**El escáner fallaba sobre fondos texturados**
+**El escáner fallaba sobre fondos texturados**<br>
 Al probar con fotos reales apoyadas sobre un mantel con textura, Canny no lograba cerrar el borde de la hoja y devolvía un contorno inválido de 10 vértices. 
 
 Se incorporó una segunda pasada de respaldo con GrabCut, fijando la semilla (cv2.setRNGSeed(0)) para garantizar resultados deterministas y descartando cuadriláteros degenerados. 
 
-**El reparador de rasguños borraba la mirada y las cejas**
+**El reparador de rasguños borraba la mirada y las cejas**<br>
 En los rostros de la foto, el detector morfológico confundía los brillos pequeños de ojos, párpados y cejas con rayas blancas y los rellenaba con inpainting. 
 
 Se eliminó la dilatación 3×3 y se filtraron los componentes pequeños de la máscara (menores a 50 px o al 0,01 % del área en fotos grandes), logrando tapar las rayas largas sin dañar los rasgos faciales. 
 
 ### Despliegue en la nube (Vercel y Supabase)
 
-***Tamaño del paquete excedido (832,54 MB > 500 MB)***
+**Tamaño del paquete excedido (832,54 MB > 500 MB)**<br>
 Al desplegar con includeFiles: "**", Vercel incluía el entorno virtual y cachés internas, superando el límite permitido para funciones Python. 
 
 Se restringió includeFiles únicamente a "{backend,frontend}/**" en vercel.json. 
 
-***Error 413 al subir o recortar fotos grandes***
+**Error 413 al subir o recortar fotos grandes**<br>
 Vercel impone un límite de 4,5 MB por solicitud y respuesta, por lo que los archivos originales o el PNG recortado fallaban al enviarse a /api/photos. 
 
 Se implementó una reducción automática en el navegador (máximo 1000 px por lado) sobre una copia de trabajo antes de subirla, y se aplicó el mismo límite al PNG devuelto por el escáner. 
 
-***Pérdida de la galería y fallos de descarga por almacenamiento efímero***
+**Pérdida de la galería y fallos de descarga por almacenamiento efímero**<br>
 En Vercel el almacenamiento local vive en /tmp y se borra al reiniciarse la función, lo que hacía fallar la descarga de la imagen procesada y vaciaba la galería. 
 
 Se modificó la descarga para que use una copia ya cargada en el navegador y se integró Supabase Storage (con bucket privado) y PostgreSQL para dar persistencia real a las fotos y a los índices del álbum. 
